@@ -1,3 +1,3 @@
-import { Add } from './Add.js';
+import { MixerZkApp } from './MixerZkApp.js';
 
-export { Add };
+export { MixerZkApp };
