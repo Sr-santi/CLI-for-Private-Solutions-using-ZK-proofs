@@ -26,11 +26,6 @@ export class MixerZkApp extends SmartContract {
   @state(Field) x = State<Field>();
   //Commitment state variable
   @state(Field) commitment = State<Field>();
-  events = {
-    update: Field,
-    payout: UInt64,
-    payoutReceiver: PublicKey,
-  };
 
   deploy(args: DeployArgs) {
     super.deploy(args);
@@ -146,7 +141,7 @@ let tx2 = await Mina.transaction(harpoFeePayer, () => {
   let update = AccountUpdate.createSigned(harpoFeePayer);
   //The userAddress is funced
   update.send({ to: userAccountAddress, amount: 10 });
-  console.log('Funding Harpo Wallet');
+  // console.log(`Initial ZKAPP Balance ${zkapp.account.balance.get().div(1e9)} MINA`);
 });
 
 //Sending transaction
@@ -169,20 +164,29 @@ async function createNullifier(publicKey: PublicKey) {
   return nullifierHash;
 }
 console.log('Second TX');
-// await tx2.send();
+await tx2.send();
 console.log('UserWallet funded succesfully');
 console.log('initial state: ' + zkapp.x.get());
 let accountsHAarpo = zkapp.account;
+console.log('Creating commitment');
 let nullifier = await createNullifier(userAccountAddress);
 let commitment = await createCommitment(nullifier);
-await sendFundstoMixer(userAccountKey, 1);
+/**
+ * TODO ADD MERKLE TREE LOGIC
+ */
+console.log('Commitment created and added succesfully to the Merkle Tree');
+
+//sENDING FUNDS TO HARPO ACCOUNT FROM USER ACCOUNT
+console.log('Sending funds ');
+await sendFundstoMixer(userAccountKey, 9);
+console.log('Funds sent succesfully');
 console.log('User PB: ' + JSON.stringify(userAccountAddress));
 console.log('User PK: ' + userAccountKey);
 console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
 console.log(
   `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
 );
-console.log(`Harpo ZKAPP Balance ${zkapp.account.balance.get().div(1e9)} MINA`);
+console.log(`Harpo ZKAPP Balance ${Mina.getBalance(zkappAddress)} MINA`);
 console.log(`Nullifier ` + nullifier);
 console.log(`Commitment  ` + commitment);
 
@@ -201,12 +205,13 @@ async function createCommitment(nullifier: any) {
  */
 async function sendFundstoMixer(sender: PrivateKey, amount: any) {
   let tx = await Mina.transaction(harpoFeePayer, () => {
-    AccountUpdate.fundNewAccount(sender);
+    // AccountUpdate.fundNewAccount(harpoFeePayer);
     let update = AccountUpdate.createSigned(sender);
     //The userAddress is funced
     update.send({ to: zkappAddress, amount: amount });
-    console.log('Funding Harpo Wallet');
+    console.log('Sendind Funds to  Harpo Wallet');
   });
+  await tx.send();
 }
 /**
  * 
