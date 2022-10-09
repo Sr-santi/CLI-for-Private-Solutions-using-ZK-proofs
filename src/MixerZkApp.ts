@@ -148,21 +148,6 @@ let tx2 = await Mina.transaction(harpoFeePayer, () => {
 });
 
 //Sending transaction
-console.log('Second TX');
-await tx2.send();
-console.log('UserWallet funded succesfully');
-// console.log('initial state: ' + zkapp.x.get());
-let accountsHAarpo = zkapp.account;
-let nullifier = await createNullifier(userAccountAddress);
-console.log('User PB: ' + JSON.stringify(userAccountAddress));
-console.log('User PK: ' + userAccountKey);
-console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
-console.log(
-  `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
-);
-console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
-console.log(`Nullifier ` + nullifier);
-
 /**
  * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
  */
@@ -179,10 +164,24 @@ async function createNullifier(publicKey: PublicKey) {
   let secretField = Field.random();
   let nullifierHash = Poseidon.hash([...keyString, secretField]);
 
-  // let nullifierField= new Field(nullifier)
-  Poseidon.hash(nullifier.toFields());
+  // let nullifierField= new Field(nullifier
   return nullifierHash;
 }
+console.log('Second TX');
+await tx2.send();
+console.log('UserWallet funded succesfully');
+// console.log('initial state: ' + zkapp.x.get());
+let accountsHAarpo = zkapp.account;
+let nullifier = await createNullifier(userAccountAddress);
+console.log('User PB: ' + JSON.stringify(userAccountAddress));
+console.log('User PK: ' + userAccountKey);
+console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
+console.log(
+  `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
+);
+console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
+console.log(`Nullifier ` + nullifier);
+
 /**
  *
  */
