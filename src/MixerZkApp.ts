@@ -34,34 +34,6 @@ const merkleTree = new MerkleTree(MerkleTreeHeight);
 
 class MerkleWitness extends Experimental.MerkleWitness(MerkleTreeHeight) {}
 
-export class Verifier extends SmartContract {
-  @state(Field) x = State<Field>();
-
-  @method update(y: Field) {
-    this.emitEvent('update', y);
-    let x = this.x.get();
-    this.x.assertEquals(x);
-    let newX = x.add(y);
-    this.x.set(newX);
-    // return newX;
-  }
-
-  deploy(args: DeployArgs) {
-    super.deploy(args);
-    this.setPermissions({
-      ...Permissions.default(),
-      editState: Permissions.proofOrSignature(),
-      send: Permissions.proofOrSignature(),
-    });
-    this.balance.addInPlace(UInt64.fromNumber(initialBalance));
-    this.x.set(initialState);
-  }
-
-  @method verifyProof(commitment: Field, merkleProof: MerkleWitness) {
-    //
-  }
-}
-
 export class MixerZkApp extends SmartContract {
   @state(Field) x = State<Field>();
   @state(Field) merkleTreeRoot = State<Field>();
@@ -111,6 +83,15 @@ export class MixerZkApp extends SmartContract {
       this.merkleTreeRoot.get().toString()
     );
     // console.log('this.root --> ', this.merkleTreeRoot.get());
+  }
+
+  @method verifyProof(commitment: Field, merkleProof: MerkleWitness) {
+    let witnessMerkleRoot = merkleProof.calculateRoot(commitment);
+
+    let merkleTreeRoot = this.merkleTreeRoot.get();
+    this.merkleTreeRoot.assertEquals(merkleTreeRoot);
+
+    witnessMerkleRoot.assertEquals(merkleTreeRoot);
   }
 }
 
@@ -270,7 +251,32 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
 
  */
 
-zkapp.updating();
+let withdrawTx = await Mina.transaction(harpoFeePayer, () => {
+  let update = AccountUpdate.createSigned(harpoFeePayer);
+  let amountToTransfer = 5;
+
+  let merkleTreeWitness = merkleTree.getWitness(1n);
+  let merkleWitness = new MerkleWitness(merkleTreeWitness);
+
+  try {
+    zkapp.verifyProof(commitment, merkleWitness);
+  } catch (e) {
+    console.log('Proof not valid');
+    console.log(e);
+  }
+
+  update.send({ to: userAccountAddress, amount: amountToTransfer });
+});
+
+console.log(
+  `User balance Pre-withdrawal : ${Mina.getBalance(userAccountAddress)} MINA`
+);
+
+await withdrawTx.send();
+
+console.log(
+  `User balance Pos-withdrawal : ${Mina.getBalance(userAccountAddress)} MINA`
+);
 
 /**
  * Get root of the tree " Initial commitment" Which would be used to verify the transaction
