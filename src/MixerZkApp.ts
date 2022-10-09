@@ -197,6 +197,8 @@ async function createCommitment(nullifier: any) {
  1. Create Merkle Tree witness 
  2.
  */
+//Creating the Merkle wiotness
+
 class MerkleWitness extends Experimental.MerkleWitness(8) {}
 
 // console.log('update');
