@@ -100,6 +100,7 @@ export class MixerZkApp extends SmartContract {
     // console.log('Internal --------------------');
     // console.log('this.root --> ', this.merkleTreeRoot.get());
     // let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
+    console.log('COMMITMENT' + commitment);
     merkleTree.setLeaf(1n, commitment);
 
     let newMerkleTreeRoot = merkleTree.getRoot();
@@ -199,7 +200,9 @@ let nullifier = await createNullifier(userAccountAddress);
 let commitment = await createCommitment(nullifier);
 console.log('User PB: ' + JSON.stringify(userAccountAddress));
 console.log('User PK: ' + userAccountKey);
-console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
+console.log(
+  `User balance Pre-Deposit : ${Mina.getBalance(userAccountAddress)} MINA`
+);
 console.log(
   `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
 );
@@ -212,7 +215,7 @@ let ammount = 10;
 await sendFundstoMixer(userAccountKey, ammount);
 console.log(`Balance post deposit: ${zkapp.account.balance.get()} MINA`);
 console.log(
-  `User balance post-deposit: ${Mina.getBalance(userAccountAddress)} MINA`
+  `User balancePpost-deposit: ${Mina.getBalance(userAccountAddress)} MINA`
 );
 /**
  * Function to create Nullifier Nullifier: H ( Spending Key, rho )
