@@ -126,28 +126,28 @@ console.log('Deploy');
 /**
  * 1. A Harpo account that will pay the gas feeds is funded
  */
-// let tx = await Mina.transaction(harpoFeePayer, () => {
-//   AccountUpdate.fundNewAccount(harpoFeePayer, { initialBalance });
-//   //One time deploy
-//   zkapp.deploy({ zkappKey });
-//   console.log('ACCOUNTS USER ');
-//   console.log(userAccountAddress);
-// });
-// await tx.send();
-// console.log('HarpoWallet funded succesfully');
+let tx = await Mina.transaction(harpoFeePayer, () => {
+  AccountUpdate.fundNewAccount(harpoFeePayer, { initialBalance });
+  //One time deploy
+  zkapp.deploy({ zkappKey });
+  console.log('ACCOUNTS USER ');
+  console.log(userAccountAddress);
+});
+await tx.send();
+console.log('HarpoWallet funded succesfully');
 
 /**
  * 2. A userAccount is  funded with the purpose of depositing into our harpoAccount.
  * Note: Will not happen in a real implementation
  */
 
-// let tx2 = await Mina.transaction(harpoFeePayer, () => {
-//   AccountUpdate.fundNewAccount(harpoFeePayer);
-//   let update = AccountUpdate.createSigned(harpoFeePayer);
-//   //The userAddress is funced
-//   update.send({ to: userAccountAddress, amount: 10 });
-//   console.log('Funding Harpo Wallet');
-// });
+let tx2 = await Mina.transaction(harpoFeePayer, () => {
+  AccountUpdate.fundNewAccount(harpoFeePayer);
+  let update = AccountUpdate.createSigned(harpoFeePayer);
+  //The userAddress is funced
+  update.send({ to: userAccountAddress, amount: 10 });
+  console.log('Funding Harpo Wallet');
+});
 
 //Sending transaction
 /**
@@ -160,57 +160,82 @@ console.log('Deploy');
  * Rho: Private key
  */
 
-// async function createNullifier(publicKey: PublicKey) {
-//   let keyString = publicKey.toFields();
-//   let secretField = Field.random();
-//   let nullifierHash = Poseidon.hash([...keyString, secretField]);
+async function createNullifier(publicKey: PublicKey) {
+  let keyString = publicKey.toFields();
+  let secretField = Field.random();
+  let nullifierHash = Poseidon.hash([...keyString, secretField]);
 
-//   // let nullifierField= new Field(nullifier
-//   return nullifierHash;
-// }
+  // let nullifierField= new Field(nullifier
+  return nullifierHash;
+}
 console.log('Second TX');
 // await tx2.send();
 console.log('UserWallet funded succesfully');
-// console.log('initial state: ' + zkapp.x.get());
-// let accountsHAarpo = zkapp.account;
-// let nullifier = await createNullifier(userAccountAddress);
-// let commitment = await createCommitment(nullifier);
-// console.log('User PB: ' + JSON.stringify(userAccountAddress));
-// console.log('User PK: ' + userAccountKey);
-// console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
-// console.log(
-//   `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
-// );
-// console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
-// console.log(`Nullifier ` + nullifier);
-// console.log(`Commitment  ` + commitment);
+console.log('initial state: ' + zkapp.x.get());
+let accountsHAarpo = zkapp.account;
+let nullifier = await createNullifier(userAccountAddress);
+let commitment = await createCommitment(nullifier);
+await sendFundstoMixer(userAccountKey, 1);
+console.log('User PB: ' + JSON.stringify(userAccountAddress));
+console.log('User PK: ' + userAccountKey);
+console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
+console.log(
+  `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
+);
+console.log(`Harpo ZKAPP Balance ${zkapp.account.balance.get().div(1e9)} MINA`);
+console.log(`Nullifier ` + nullifier);
+console.log(`Commitment  ` + commitment);
+
 /**
  * Function to create  the Commitment C(0) = H(S(0),N(0))
  */
-// async function createCommitment(nullifier: any) {
-//   let secret = Field.random();
-//   let commitment = Poseidon.hash([nullifier, secret]);
-//   return commitment;
-// }
-
+async function createCommitment(nullifier: any) {
+  let secret = Field.random();
+  let commitment = Poseidon.hash([nullifier, secret]);
+  return commitment;
+}
+// TODO ADD MERKLE TREE LOGIC
 /**
+ * 5. After the commitment is added into the merkle Tree and the note is returned, the money should be send to the zkApp account
+ *
+ */
+async function sendFundstoMixer(sender: PrivateKey, amount: any) {
+  let tx = await Mina.transaction(harpoFeePayer, () => {
+    AccountUpdate.fundNewAccount(sender);
+    let update = AccountUpdate.createSigned(sender);
+    //The userAddress is funced
+    update.send({ to: zkappAddress, amount: amount });
+    console.log('Funding Harpo Wallet');
+  });
+}
+/**
+ * 
  *Merkle Tree implementation 
- 1. Create Merkle Tree witness 
+ 1. Create Merkle Tree instance.  
  2. Wrap  the Merkle Tree into a off-chain storage form 
+ 3. Set leaf with the Commitment
+  Note: What happens if the Merkle tree is full 
+ 4. Get root of the tree " Initial commitment" Which would be used to verify the transaction // Add to a state variable 
+ Withdraw Logic 
+ 5. Generate merkle tree Witness based on the commitment idndex ( Which comes from the commitment provided)
+ 6. Verify with the witness that the commitment is part of the merkle tree path. 
+
  */
 //Creating the Merkle wiotness
 
-class MerkleWitness extends Experimental.MerkleWitness(8) {}
-const mixerTree = new Experimental.MerkleTree(8);
+// class MerkleWitness extends Experimental.MerkleWitness(8) {}
+// const mixerTree = new Experimental.MerkleTree(8);
 
-//We will set a experimental commitment to our Merkle Tree
-let testHash = Poseidon.hash([Field.random()]);
+// //We will set a experimental commitment to our Merkle Tree
+// let testHash = Poseidon.hash([Field.random()]);
 
-//Setting testing Leafs into the Tree
+// //Setting testing Leafs into the Tree
 // mixerTree.setLeaf(1n,testHash);
-//Creating a initial commitment
-let initialCommitment = mixerTree.getRoot();
-console.log('Initial Commitment' + initialCommitment);
+// //Creating a initial commitment
+// let initialCommitment = mixerTree.getRoot();
+// console.log('Initial Commitment'+ initialCommitment)
+
+//Path verification
 
 // console.log('update');
 // tx = await Mina.transaction(harpoFeePayer, () => {
