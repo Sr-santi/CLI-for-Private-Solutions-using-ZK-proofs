@@ -85,6 +85,13 @@ export class MixerZkApp extends SmartContract {
     console.log('Just for compiling');
     // return newX;
   }
+  // @method updateRoot(root:Field) {
+  //   this.merkleTreeRoot.set(root)
+  //   let merkleTreeRoot = this.merkleTreeRoot.get();
+  //   this.merkleTreeRoot.assertEquals(merkleTreeRoot);
+  //   console.log ( 'PRUEBAAAAA'+ this.merkleTreeRoot.get().toString())
+  //   // return newX;
+  // }
 
   insertCommitment(commitment: Field) {
     // we fetch the on-chain commitment
@@ -103,10 +110,9 @@ export class MixerZkApp extends SmartContract {
     console.log('COMMITMENT' + commitment);
     merkleTree.setLeaf(1n, commitment);
 
-    let newMerkleTreeRoot = merkleTree.getRoot();
-    this.merkleTreeRoot.set(newMerkleTreeRoot);
+    // this.merkleTreeRoot.set(merkleTree.getRoot());
     console.log(
-      'Merkle tree root (post insertion)',
+      'Merkle tree root (post insertion 22222)',
       this.merkleTreeRoot.get().toString()
     );
     // console.log('this.root --> ', this.merkleTreeRoot.get());
@@ -217,6 +223,7 @@ console.log(`Balance post deposit: ${zkapp.account.balance.get()} MINA`);
 console.log(
   `User balancePpost-deposit: ${Mina.getBalance(userAccountAddress)} MINA`
 );
+// await withdraw();
 /**
  * Function to create Nullifier Nullifier: H ( Spending Key, rho )
  * Spending key: Public key
@@ -273,7 +280,10 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
  5. Verify with the witness that the commitment is part of the merkle tree path. 
 
  */
+// async function withdraw(){
+//   zkapp.updateRoot(merkleTree.getRoot())
 
+// }
 /**
  * Get root of the tree " Initial commitment" Which would be used to verify the transaction
  */
