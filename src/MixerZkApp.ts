@@ -34,34 +34,34 @@ const merkleTree = new MerkleTree(MerkleTreeHeight);
 
 class MerkleWitness extends Experimental.MerkleWitness(MerkleTreeHeight) {}
 
-// export class Verifier extends SmartContract {
-//   @state(Field) x = State<Field>();
+export class Verifier extends SmartContract {
+  @state(Field) x = State<Field>();
 
-//   @method update(y: Field) {
-//     this.emitEvent('update', y);
-//     let x = this.x.get();
-//     this.x.assertEquals(x);
-//     let newX = x.add(y);
-//     this.x.set(newX);
-//     // return newX;
-//   }
+  @method update(y: Field) {
+    this.emitEvent('update', y);
+    let x = this.x.get();
+    this.x.assertEquals(x);
+    let newX = x.add(y);
+    this.x.set(newX);
+    // return newX;
+  }
 
-//   deploy(args: DeployArgs) {
-//     super.deploy(args);
-//     this.setPermissions({
-//       ...Permissions.default(),
-//       editState: Permissions.proofOrSignature(),
-//       send: Permissions.proofOrSignature(),
-//     });
-//     this.balance.addInPlace(UInt64.fromNumber(initialBalance));
-//     this.x.set(initialState);
-//   }
+  deploy(args: DeployArgs) {
+    super.deploy(args);
+    this.setPermissions({
+      ...Permissions.default(),
+      editState: Permissions.proofOrSignature(),
+      send: Permissions.proofOrSignature(),
+    });
+    this.balance.addInPlace(UInt64.fromNumber(initialBalance));
+    this.x.set(initialState);
+  }
 
-//   @method verifyProof(merkleProof: MerkleWitness) {
-//     //
-//   }
-// }
-let initialIndex: Field = Field.zero;
+  @method verifyProof(merkleProof: MerkleWitness) {
+    //
+  }
+}
+
 export class MixerZkApp extends SmartContract {
   @state(Field) x = State<Field>();
   @state(Field) merkleTreeRoot = State<Field>();
@@ -75,15 +75,16 @@ export class MixerZkApp extends SmartContract {
       send: Permissions.proofOrSignature(),
     });
     this.balance.addInPlace(UInt64.fromNumber(initialBalance));
+  }
 
+  @method init() {
     this.x.set(initialState);
     this.merkleTreeRoot.set(merkleTree.getRoot());
-    this.lastIndexAdded.set(initialIndex);
+    this.lastIndexAdded.set(new Field(0));
   }
 
   @method update(y: Field) {
     console.log('Just for compiling');
-    // return newX;
   }
 
   insertCommitment(commitment: Field) {
@@ -113,10 +114,6 @@ export class MixerZkApp extends SmartContract {
   }
 }
 
-async function toStr(value: Field) {
-  return value.toString();
-}
-
 let Local = Mina.LocalBlockchain();
 Mina.setActiveInstance(Local);
 
@@ -141,7 +138,6 @@ let initialBalance = 10_000_000_000;
 let initialState = Field(1);
 console.log('ZkAppAddress: ', zkappAddress);
 
-initialIndex = new Field(0);
 let zkapp = new MixerZkApp(zkappAddress);
 if (doProofs) {
   console.log('compile');
@@ -273,6 +269,8 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
  5. Verify with the witness that the commitment is part of the merkle tree path. 
 
  */
+
+zkapp.updating();
 
 /**
  * Get root of the tree " Initial commitment" Which would be used to verify the transaction
