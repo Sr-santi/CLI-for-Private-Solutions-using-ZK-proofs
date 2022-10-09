@@ -11,9 +11,10 @@ import {
   isReady,
   Permissions,
   DeployArgs,
-  Bool,
+  // Bool,
   PublicKey,
-  Circuit,
+  // Circuit,
+  Poseidon,
 } from 'snarkyjs';
 
 const doProofs = true;
@@ -49,52 +50,54 @@ export class MixerZkApp extends SmartContract {
     // return newX;
   }
 
-  /**
-   * This method allows a certain privileged account to claim half of the zkapp balance, but only once
-   * @param caller the privileged account
-   */
-  @method payout(caller: PrivateKey) {
-    // check that caller is the privileged account
-    let callerAddress = caller.toPublicKey();
-    callerAddress.assertEquals(privilegedAddress);
+  // /**
+  //  * This method allows a certain privileged account to claim half of the zkapp balance, but only once
+  //  * @param caller the privileged account
+  //  */
+  // @method payout(caller: PrivateKey) {
+  //   // check that caller is the privileged account
+  //   let callerAddress = caller.toPublicKey();
+  //   // callerAddress.assertEquals(privilegedAddress);
 
-    // assert that the caller account is new - this way, payout can only happen once
-    let callerAccountUpdate = AccountUpdate.defaultAccountUpdate(callerAddress);
-    callerAccountUpdate.account.isNew.assertEquals(Bool(true));
+  //   // assert that the caller account is new - this way, payout can only happen once
+  //   let callerAccountUpdate = AccountUpdate.defaultAccountUpdate(callerAddress);
+  //   callerAccountUpdate.account.isNew.assertEquals(Bool(true));
 
-    // pay out half of the zkapp balance to the caller
-    let balance = this.account.balance.get();
-    this.account.balance.assertEquals(balance);
-    // FIXME UInt64.div() doesn't work on variables
-    let halfBalance = Circuit.witness(UInt64, () =>
-      balance.toConstant().div(2)
-    );
-    this.send({ to: callerAccountUpdate, amount: halfBalance });
+  //   // pay out half of the zkapp balance to the caller
+  //   let balance = this.account.balance.get();
+  //   this.account.balance.assertEquals(balance);
+  //   // FIXME UInt64.div() doesn't work on variables
+  //   let halfBalance = Circuit.witness(UInt64, () =>
+  //     balance.toConstant().div(2)
+  //   );
+  //   this.send({ to: callerAccountUpdate, amount: halfBalance });
 
-    // emit some events
-    this.emitEvent('payoutReceiver', callerAddress);
-    this.emitEvent('payout', halfBalance);
-  }
+  //   // emit some events
+  //   this.emitEvent('payoutReceiver', callerAddress);
+  //   this.emitEvent('payout', halfBalance);
+  // }
 }
 
 let Local = Mina.LocalBlockchain();
 Mina.setActiveInstance(Local);
 
 // a test account that pays all the fees, and puts additional funds into the zkapp
-//For our Mixer case the FeePayer will be the HarpoAccount
-let feePayer = Local.testAccounts[0].privateKey;
+//For our Mixer case the HarpoFeePayer will be the HarpoAccount
+let harpoFeePayer = Local.testAccounts[0].privateKey;
+let harpoFeePayerAccount = harpoFeePayer.toPublicKey();
 
-// the zkapp account
+// the Harpo zkapp account
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-// Creating a new Harpo account
-let HarpoAccount = PrivateKey.random();
-let HarpoAddress = HarpoAccount.toPublicKey();
-let privilegedKey = PrivateKey.random();
-let privilegedAddress = privilegedKey.toPublicKey();
+// Creating a user account that wants to use Harpo
+//TODO Replace with real address coming from Aura;
+let userAccountKey = PrivateKey.random();
+let userAccountAddress = userAccountKey.toPublicKey();
 
+//This initial balance will fund our harpoFeePayer
 let initialBalance = 10_000_000_000;
+
 // let initialBalance2 = 10_000;
 let initialState = Field(1);
 let zkapp = new MixerZkApp(zkappAddress);
@@ -103,87 +106,142 @@ if (doProofs) {
   console.log('compile');
   await MixerZkApp.compile();
 }
+
 /**
- * Deploy Logic we fund a test account that will Deposit in our Harpo Account
+ * Deposit  Logic
+ * 1. A Harpo account that will pay the gas feeds is funded
+ * 2. A userAccount is  funded with the purpose of depositing into our harpoAccount.
+ * Note: In a real implementation this would not happen as the account already has a balance
+ * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
+ * 3.1 A Secret is created using Poseidon
+ * 3.2 A Nullifier is created for avoiding double spending
+ * 3.3 The Secret and the Nullifier is hashed and the commitment is created
+ * 4. Add commitment to the Merkle Tree
+ * 5. Send funds from useraccount to MerkleTree
  */
-console.log('deploy');
-let tx = await Mina.transaction(feePayer, () => {
-  AccountUpdate.fundNewAccount(feePayer, { initialBalance });
+console.log('Deposit Logic Starting ');
+console.log('Deploy');
+/**
+ * 1. A Harpo account that will pay the gas feeds is funded
+ */
+let tx = await Mina.transaction(harpoFeePayer, () => {
+  AccountUpdate.fundNewAccount(harpoFeePayer, { initialBalance });
+  //One time deploy
   zkapp.deploy({ zkappKey });
-  console.log('ACCOUNTS TX Object: ');
-  console.log(privilegedAddress);
+  console.log('ACCOUNTS USER ');
+  console.log(userAccountAddress);
 });
 await tx.send();
-let tx2 = await Mina.transaction(feePayer, () => {
-  AccountUpdate.fundNewAccount(feePayer);
-  let update = AccountUpdate.createSigned(feePayer);
-  update.send({ to: HarpoAddress, amount: 0 });
+console.log('HarpoWallet funded succesfully');
+
+/**
+ * 2. A userAccount is  funded with the purpose of depositing into our harpoAccount.
+ * Note: Will not happen in a real implementation
+ */
+
+let tx2 = await Mina.transaction(harpoFeePayer, () => {
+  AccountUpdate.fundNewAccount(harpoFeePayer);
+  let update = AccountUpdate.createSigned(harpoFeePayer);
+  //The userAddress is funced
+  update.send({ to: userAccountAddress, amount: 10 });
   console.log('Funding Harpo Wallet');
 });
+
 //Sending transaction
 console.log('Second TX');
 await tx2.send();
-
-console.log('initial state: ' + zkapp.x.get());
-console.log('Accounts: ' + zkapp.account);
-console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
-// console.log(`Harpo Account Balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
-
-console.log('update');
-tx = await Mina.transaction(feePayer, () => {
-  zkapp.update(new Field(3));
-  if (!doProofs) zkapp.sign(zkappKey);
-});
-if (doProofs) await tx.prove();
-await tx.send();
-
-// pay more into the zkapp -- this doesn't need a proof
-console.log('receive');
-tx = await Mina.transaction(feePayer, () => {
-  let payerAccountUpdate = AccountUpdate.createSigned(feePayer);
-  payerAccountUpdate.send({ to: zkappAddress, amount: UInt64.from(8e9) });
-});
-await tx.send();
-
-console.log('payout');
-
-tx = await Mina.transaction(feePayer, () => {
-  AccountUpdate.fundNewAccount(feePayer);
-  zkapp.payout(privilegedKey);
-  if (!doProofs) zkapp.sign(zkappKey);
-});
-if (doProofs) await tx.prove();
-await tx.send();
-
-console.log('final state: ' + zkapp.x.get());
-console.log(`final balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
-
-console.log('try to payout a second time..');
-tx = await Mina.transaction(feePayer, () => {
-  zkapp.payout(privilegedKey);
-  if (!doProofs) zkapp.sign(zkappKey);
-});
-try {
-  if (doProofs) await tx.prove();
-  await tx.send();
-} catch (err: any) {
-  console.log('Transaction failed with error', err.message);
-}
-
-console.log('try to payout to a different account..');
-try {
-  tx = await Mina.transaction(feePayer, () => {
-    zkapp.payout(Local.testAccounts[2].privateKey);
-    if (!doProofs) zkapp.sign(zkappKey);
-  });
-  if (doProofs) await tx.prove();
-  await tx.send();
-} catch (err: any) {
-  console.log('Transaction failed with error', err.message);
-}
-
+console.log('UserWallet funded succesfully');
+// console.log('initial state: ' + zkapp.x.get());
+let accountsHAarpo = zkapp.account;
+let nullifier = await createNullifier(userAccountAddress);
+console.log('User PB: ' + JSON.stringify(userAccountAddress));
+console.log('User PK: ' + userAccountKey);
+console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
 console.log(
-  `should still be the same final balance: ${zkapp.account.balance
-    .get()
-    .div(1e9)} MINA`
+  `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
 );
+console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
+console.log(`Nullifier ` + nullifier);
+
+/**
+ * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
+ */
+
+/**
+ * Nullifier: H ( Spending Key, rho )
+ * Spending key: Public key
+ * Rho: Private key
+ */
+
+async function createNullifier(publicKey: PublicKey) {
+  let fields = [];
+  let keyString = publicKey.toFields();
+  let secretField = Field.random();
+  let nullifierHash = Poseidon.hash([...keyString, secretField]);
+
+  // let nullifierField= new Field(nullifier)
+  Poseidon.hash(nullifier.toFields());
+  return nullifierHash;
+}
+/**
+ *
+ */
+
+// console.log('update');
+// tx = await Mina.transaction(harpoFeePayer, () => {
+//   zkapp.update(new Field(3));
+//   if (!doProofs) zkapp.sign(zkappKey);
+// });
+// if (doProofs) await tx.prove();
+// await tx.send();
+
+// // pay more into the zkapp -- this doesn't need a proof
+// console.log('receive');
+// tx = await Mina.transaction(harpoFeePayer, () => {
+//   let payerAccountUpdate = AccountUpdate.createSigned(harpoFeePayer);
+//   payerAccountUpdate.send({ to: zkappAddress, amount: UInt64.from(8e9) });
+// });
+// await tx.send();
+
+// console.log('payout');
+
+// tx = await Mina.transaction(harpoFeePayer, () => {
+//   AccountUpdate.fundNewAccount(harpoFeePayer);
+//   zkapp.payout(privilegedKey);
+//   if (!doProofs) zkapp.sign(zkappKey);
+// });
+// if (doProofs) await tx.prove();
+// await tx.send();
+
+// console.log('final state: ' + zkapp.x.get());
+// console.log(`final balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
+
+// console.log('try to payout a second time..');
+// tx = await Mina.transaction(harpoFeePayer, () => {
+//   zkapp.payout(privilegedKey);
+//   if (!doProofs) zkapp.sign(zkappKey);
+// });
+// try {
+//   if (doProofs) await tx.prove();
+//   await tx.send();
+// } catch (err: any) {
+//   console.log('Transaction failed with error', err.message);
+// }
+
+// console.log('try to payout to a different account..');
+// try {
+//   tx = await Mina.transaction(harpoFeePayer, () => {
+//     zkapp.payout(Local.testAccounts[2].privateKey);
+//     if (!doProofs) zkapp.sign(zkappKey);
+//   });
+//   if (doProofs) await tx.prove();
+//   await tx.send();
+// } catch (err: any) {
+//   console.log('Transaction failed with error', err.message);
+// }
+
+// console.log(
+//   `should still be the same final balance: ${zkapp.account.balance
+//     .get()
+//     .div(1e9)} MINA`
+// );
