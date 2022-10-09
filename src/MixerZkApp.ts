@@ -97,12 +97,12 @@ export class MixerZkApp extends SmartContract {
 
     console.log('Internal --------------------');
     console.log('this.root --> ', this.merkleTreeRoot.get());
-    let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
-    merkleTree.setLeaf(indexForNextCommitment, commitment);
+    // let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
+    merkleTree.setLeaf(0n, commitment);
 
-    // let newMerkleTreeRoot = merkleTree.getRoot();
-    // this.merkleTreeRoot.set(newMerkleTreeRoot);
-    // console.log("this.root --> ", this.merkleTreeRoot.get());
+    let newMerkleTreeRoot = merkleTree.getRoot();
+    this.merkleTreeRoot.set(newMerkleTreeRoot);
+    console.log('this.root --> ', this.merkleTreeRoot.get());
   }
 }
 
@@ -200,7 +200,8 @@ console.log(
 console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
 console.log(`Nullifier ` + nullifier);
 console.log(`Commitment  ` + commitment);
-
+let insertCommitmentResult = insertCommitment(commitment);
+console.log('Insert commitment result' + insertCommitmentResult);
 /**
  * Function to create Nullifier Nullifier: H ( Spending Key, rho )
  * Spending key: Public key
@@ -223,10 +224,18 @@ async function createCommitment(nullifier: any) {
   let commitment = Poseidon.hash([nullifier, secret]);
   return commitment;
 }
-// TODO ADD MERKLE TREE LOGIC
 /**
- * 5. After the commitment is added into the merkle Tree and the note is returned, the money should be send to the zkApp account
+ * Merkle Tree insert commitment function
  *
+ */
+async function insertCommitment(commitment: Field) {
+  let result = await zkapp.insertCommitment(commitment);
+  return result;
+}
+/**
+ * After the commitment is added into the merkle Tree and the note is returned, the money should be send to the zkApp account
+ * @param sender
+ * @param amount
  */
 async function sendFundstoMixer(sender: PrivateKey, amount: any) {
   let tx = await Mina.transaction(harpoFeePayer, () => {
@@ -240,32 +249,43 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
 }
 /**
  * 
- *Merkle Tree implementation 
- 1. Create Merkle Tree instance.  
- 2. Wrap  the Merkle Tree into a off-chain storage form 
- 3. Set leaf with the Commitment
-  Note: What happens if the Merkle tree is full 
- 4. Get root of the tree " Initial commitment" Which would be used to verify the transaction // Add to a state variable 
+ * Withdraw and Merkle Tree implementation 
+ 1. Create Merkle Tree instance. ( Done in Line 87 )
+ 2. Set leaf with the Commitment ( Done in the insertCommitment function )
+  Note / ToDO : What happens if the Merkle tree is full 
+ 3. Get root of the tree " Initial commitment" Which would be used to verify the transaction // Add to a state variable 
  Withdraw Logic 
- 5. Generate merkle tree Witness based on the commitment idndex ( Which comes from the commitment provided)
- 6. Verify with the witness that the commitment is part of the merkle tree path. 
+ 4. Generate merkle tree Witness based on the commitment idndex ( Which comes from the commitment provided)
+ 5. Verify with the witness that the commitment is part of the merkle tree path. 
 
  */
-//Creating the Merkle wiotness
 
-// // Inserting a commitment in the Merkle Tree
+/**
+ * Get root of the tree " Initial commitment" Which would be used to verify the transaction
+ */
+
 console.log('-------------Inserting a commitment----------------------');
 console.log(
   'Merkle tree root (pre insertion)',
   zkapp.merkleTreeRoot.get().toString()
 );
-console.log('-->', merkleTree.getRoot().toString());
-zkapp.insertCommitment(commitment);
-console.log('-->', merkleTree.getRoot().toString());
-console.log(
-  'Merkle tree root (pos insertion)',
-  zkapp.merkleTreeRoot.get().toString()
-);
+
+/**
+ * Generate merkle tree Witness based on the commitment idndex ( Which comes from the commitment provided)
+ */
+
+/**
+ * Verify with the witness that the commitment is part of the merkle tree path.
+ */
+
+// // Inserting a commitment in the Merkle Tree
+// console.log('-->', merkleTree.getRoot().toString());
+// // zkapp.insertCommitment(commitment);
+// console.log('-->', merkleTree.getRoot().toString());
+// console.log(
+//   'Merkle tree root (pos insertion)',
+//   zkapp.merkleTreeRoot.get().toString()
+// );
 
 // //We will set a experimental commitment to our Merkle Tree
 // let testHash = Poseidon.hash([Field.random()]);
