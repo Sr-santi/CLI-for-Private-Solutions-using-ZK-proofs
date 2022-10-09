@@ -24,7 +24,7 @@ await isReady;
 
 type Witness = { isLeft: boolean; sibling: Field }[];
 
-const MerkleTreeHeight = 8;
+const MerkleTreeHeight = 4;
 
 /** Merkle Tree
  * Instance for global reference. It must be stored off-chain.
@@ -81,28 +81,34 @@ export class MixerZkApp extends SmartContract {
     this.lastIndexAdded.set(initialIndex);
   }
 
-  // @method update(y: Field) {
-  //   this.emitEvent('update', y);
-  //   let x = this.x.get();
-  //   this.x.assertEquals(x);
-  //   let newX = x.add(y);
-  //   this.x.set(newX);
-  //   // return newX;
-  // }
+  @method update(y: Field) {
+    console.log('Just for compiling');
+    // return newX;
+  }
 
-  @method insertCommitment(commitment: Field) {
+  insertCommitment(commitment: Field) {
     // we fetch the on-chain commitment
     let lastIndexAdded = this.lastIndexAdded.get();
     this.lastIndexAdded.assertEquals(lastIndexAdded);
 
-    console.log('Internal --------------------');
-    console.log('this.root --> ', this.merkleTreeRoot.get());
+    let merkleTreeRoot = this.merkleTreeRoot.get();
+    this.merkleTreeRoot.assertEquals(merkleTreeRoot);
+    console.log(
+      'Merkle tree root (pre insertion)',
+      this.merkleTreeRoot.get().toString()
+    );
+    // console.log('Internal --------------------');
+    // console.log('this.root --> ', this.merkleTreeRoot.get());
     // let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
-    merkleTree.setLeaf(0n, commitment);
+    merkleTree.setLeaf(1n, commitment);
 
     let newMerkleTreeRoot = merkleTree.getRoot();
     this.merkleTreeRoot.set(newMerkleTreeRoot);
-    console.log('this.root --> ', this.merkleTreeRoot.get());
+    console.log(
+      'Merkle tree root (post insertion)',
+      this.merkleTreeRoot.get().toString()
+    );
+    // console.log('this.root --> ', this.merkleTreeRoot.get());
   }
 }
 
@@ -197,11 +203,17 @@ console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
 console.log(
   `Harpo Account Balance: ${Mina.getBalance(harpoFeePayerAccount)} MINA`
 );
-console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
+console.log(` Balance pre-deposit: ${zkapp.account.balance.get()} MINA`);
 console.log(`Nullifier ` + nullifier);
 console.log(`Commitment  ` + commitment);
-let insertCommitmentResult = insertCommitment(commitment);
-console.log('Insert commitment result' + insertCommitmentResult);
+await insertCommitment(commitment);
+//Sending money to the account
+let ammount = 10;
+await sendFundstoMixer(userAccountKey, ammount);
+console.log(`Balance post deposit: ${zkapp.account.balance.get()} MINA`);
+console.log(
+  `User balance post-deposit: ${Mina.getBalance(userAccountAddress)} MINA`
+);
 /**
  * Function to create Nullifier Nullifier: H ( Spending Key, rho )
  * Spending key: Public key
@@ -229,8 +241,7 @@ async function createCommitment(nullifier: any) {
  *
  */
 async function insertCommitment(commitment: Field) {
-  let result = await zkapp.insertCommitment(commitment);
-  return result;
+  await zkapp.insertCommitment(commitment);
 }
 /**
  * After the commitment is added into the merkle Tree and the note is returned, the money should be send to the zkApp account
@@ -264,11 +275,11 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
  * Get root of the tree " Initial commitment" Which would be used to verify the transaction
  */
 
-console.log('-------------Inserting a commitment----------------------');
-console.log(
-  'Merkle tree root (pre insertion)',
-  zkapp.merkleTreeRoot.get().toString()
-);
+// console.log('-------------Inserting a commitment----------------------');
+// console.log(
+//   'Merkle tree root (pre insertion)',
+//   zkapp.merkleTreeRoot.get().toString()
+// );
 
 /**
  * Generate merkle tree Witness based on the commitment idndex ( Which comes from the commitment provided)
