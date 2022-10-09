@@ -67,12 +67,6 @@ export class MixerZkApp extends SmartContract {
   @state(Field) merkleTreeRoot = State<Field>();
   @state(Field) lastIndexAdded = State<Field>();
 
-  events = {
-    update: Field,
-    payout: UInt64,
-    payoutReceiver: PublicKey,
-  };
-
   deploy(args: DeployArgs) {
     super.deploy(args);
     this.setPermissions({
@@ -227,8 +221,37 @@ async function createCommitment(nullifier: any) {
   let commitment = Poseidon.hash([nullifier, secret]);
   return commitment;
 }
+// TODO ADD MERKLE TREE LOGIC
+/**
+ * 5. After the commitment is added into the merkle Tree and the note is returned, the money should be send to the zkApp account
+ *
+ */
+async function sendFundstoMixer(sender: PrivateKey, amount: any) {
+  let tx = await Mina.transaction(harpoFeePayer, () => {
+    // AccountUpdate.fundNewAccount(harpoFeePayer);
+    let update = AccountUpdate.createSigned(sender);
+    //The userAddress is funced
+    update.send({ to: zkappAddress, amount: amount });
+    console.log('Sendind Funds to  Harpo Wallet');
+  });
+  await tx.send();
+}
+/**
+ * 
+ *Merkle Tree implementation 
+ 1. Create Merkle Tree instance.  
+ 2. Wrap  the Merkle Tree into a off-chain storage form 
+ 3. Set leaf with the Commitment
+  Note: What happens if the Merkle tree is full 
+ 4. Get root of the tree " Initial commitment" Which would be used to verify the transaction // Add to a state variable 
+ Withdraw Logic 
+ 5. Generate merkle tree Witness based on the commitment idndex ( Which comes from the commitment provided)
+ 6. Verify with the witness that the commitment is part of the merkle tree path. 
 
-// Inserting a commitment in the Merkle Tree
+ */
+//Creating the Merkle wiotness
+
+// // Inserting a commitment in the Merkle Tree
 console.log('-------------Inserting a commitment----------------------');
 console.log(
   'Merkle tree root (pre insertion)',
@@ -242,8 +265,8 @@ console.log(
   zkapp.merkleTreeRoot.get().toString()
 );
 
-//We will set a experimental commitment to our Merkle Tree
-let testHash = Poseidon.hash([Field.random()]);
+// //We will set a experimental commitment to our Merkle Tree
+// let testHash = Poseidon.hash([Field.random()]);
 
 console.log('update');
 tx = await Mina.transaction(harpoFeePayer, () => {
@@ -252,38 +275,3 @@ tx = await Mina.transaction(harpoFeePayer, () => {
 });
 if (doProofs) await tx.prove();
 await tx.send();
-
-// pay more into the zkapp -- this doesn't need a proof
-// console.log('receive');
-// tx = await Mina.transaction(harpoFeePayer, () => {
-//   let payerAccountUpdate = AccountUpdate.createSigned(harpoFeePayer);
-//   payerAccountUpdate.send({ to: zkappAddress, amount: UInt64.from(8e9) });
-// });
-// await tx.send();
-
-// tx = await Mina.transaction(harpoFeePayer, () => {
-//   AccountUpdate.fundNewAccount(harpoFeePayer);
-//   if (!doProofs) zkapp.sign(zkappKey);
-// });
-// if (doProofs) await tx.prove();
-// await tx.send();
-
-// console.log('final state: ' + zkapp.x.get());
-// console.log(`final balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
-
-// console.log('try to payout a second time..');
-// tx = await Mina.transaction(harpoFeePayer, () => {
-//   if (!doProofs) zkapp.sign(zkappKey);
-// });
-// try {
-//   if (doProofs) await tx.prove();
-//   await tx.send();
-// } catch (err: any) {
-//   console.log('Transaction failed with error', err.message);
-// }
-
-// console.log(
-//   `should still be the same final balance: ${zkapp.account.balance
-//     .get()
-//     .div(1e9)} MINA`
-// );
