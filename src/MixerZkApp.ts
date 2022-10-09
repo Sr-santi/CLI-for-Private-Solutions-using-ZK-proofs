@@ -57,7 +57,7 @@ export class Verifier extends SmartContract {
     this.x.set(initialState);
   }
 
-  @method verifyProof(merkleProof: MerkleWitness) {
+  @method verifyProof(commitment: Field, merkleProof: MerkleWitness) {
     //
   }
 }
