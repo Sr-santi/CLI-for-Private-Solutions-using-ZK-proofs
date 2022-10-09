@@ -88,8 +88,8 @@ export class MixerZkApp extends SmartContract {
   @method verifyProof(commitment: Field, merkleProof: MerkleWitness) {
     let witnessMerkleRoot = merkleProof.calculateRoot(commitment);
 
-    let merkleTreeRoot = this.merkleTreeRoot.get();
-    this.merkleTreeRoot.assertEquals(merkleTreeRoot);
+    let merkleTreeRoot = merkleTree.getRoot();
+    // this.merkleTreeRoot.assertEquals(merkleTreeRoot);
 
     witnessMerkleRoot.assertEquals(merkleTreeRoot);
   }
@@ -254,7 +254,6 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
 let withdrawTx = await Mina.transaction(harpoFeePayer, () => {
   let update = AccountUpdate.createSigned(harpoFeePayer);
   let amountToTransfer = 5;
-
   let merkleTreeWitness = merkleTree.getWitness(1n);
   let merkleWitness = new MerkleWitness(merkleTreeWitness);
 
