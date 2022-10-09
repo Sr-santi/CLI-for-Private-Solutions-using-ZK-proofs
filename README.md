@@ -65,9 +65,9 @@ We think this project is fundamental for creating a privacy and security ecosyst
 
 - Integrate compatibility with Wallets: We want to focus first on delivering a secure, friendly, and high-quality product. We will integrate compatibility with Aura Wallet and then Chainsafe or Uniswap when the integration is ready, the goal is to increase adoption.
 
--Upgrade from a Mixer to a Private Rollup: We want to build a privacy rollup that enables more builders to create ZkApps on top of our protocol, for example, Defi private protocols, including lending applications, staking applications, and an infinite number of possibilities.
+- Upgrade from a Mixer to a Private Rollup: We want to build a privacy rollup that enables more builders to create ZkApps on top of our protocol, for example, Defi private protocols, including lending applications, staking applications, and an infinite number of possibilities.
 
--Building bridges between Minado and other blockchains: We will start building bridges with other blockchains to increase volume and liquidity which will benefit other builders like us and will enhance network effects.
+- Building bridges between Minado and other blockchains: We will start building bridges with other blockchains to increase volume and liquidity which will benefit other builders like us and will enhance network effects.
 
 ## How to build? 💡
 
