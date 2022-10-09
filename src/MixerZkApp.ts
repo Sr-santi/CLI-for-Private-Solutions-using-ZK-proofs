@@ -34,34 +34,34 @@ const merkleTree = new MerkleTree(MerkleTreeHeight);
 
 class MerkleWitness extends Experimental.MerkleWitness(MerkleTreeHeight) {}
 
-export class Verifier extends SmartContract {
-  @state(Field) x = State<Field>();
+// export class Verifier extends SmartContract {
+//   @state(Field) x = State<Field>();
 
-  @method update(y: Field) {
-    this.emitEvent('update', y);
-    let x = this.x.get();
-    this.x.assertEquals(x);
-    let newX = x.add(y);
-    this.x.set(newX);
-    // return newX;
-  }
+//   @method update(y: Field) {
+//     this.emitEvent('update', y);
+//     let x = this.x.get();
+//     this.x.assertEquals(x);
+//     let newX = x.add(y);
+//     this.x.set(newX);
+//     // return newX;
+//   }
 
-  deploy(args: DeployArgs) {
-    super.deploy(args);
-    this.setPermissions({
-      ...Permissions.default(),
-      editState: Permissions.proofOrSignature(),
-      send: Permissions.proofOrSignature(),
-    });
-    this.balance.addInPlace(UInt64.fromNumber(initialBalance));
-    this.x.set(initialState);
-  }
+//   deploy(args: DeployArgs) {
+//     super.deploy(args);
+//     this.setPermissions({
+//       ...Permissions.default(),
+//       editState: Permissions.proofOrSignature(),
+//       send: Permissions.proofOrSignature(),
+//     });
+//     this.balance.addInPlace(UInt64.fromNumber(initialBalance));
+//     this.x.set(initialState);
+//   }
 
-  @method verifyProof(merkleProof: MerkleWitness) {
-    //
-  }
-}
-
+//   @method verifyProof(merkleProof: MerkleWitness) {
+//     //
+//   }
+// }
+let initialIndex: Field = Field.zero;
 export class MixerZkApp extends SmartContract {
   @state(Field) x = State<Field>();
   @state(Field) merkleTreeRoot = State<Field>();
@@ -78,25 +78,27 @@ export class MixerZkApp extends SmartContract {
 
     this.x.set(initialState);
     this.merkleTreeRoot.set(merkleTree.getRoot());
-    this.lastIndexAdded.set(new Field(0));
+    this.lastIndexAdded.set(initialIndex);
   }
 
-  @method update(y: Field) {
-    this.emitEvent('update', y);
-    let x = this.x.get();
-    this.x.assertEquals(x);
-    let newX = x.add(y);
-    this.x.set(newX);
-    // return newX;
-  }
+  // @method update(y: Field) {
+  //   this.emitEvent('update', y);
+  //   let x = this.x.get();
+  //   this.x.assertEquals(x);
+  //   let newX = x.add(y);
+  //   this.x.set(newX);
+  //   // return newX;
+  // }
 
   @method insertCommitment(commitment: Field) {
-    let lastIndex = this.lastIndexAdded.get();
-    let valor = toStr(lastIndex);
-    // console.log("Internal --------------------");
-    // console.log("this.root --> ", this.merkleTreeRoot.get());
-    // let indexForNextCommitment = this.lastIndexAdded.get().toString() + 1n;
-    // merkleTree.setLeaf(indexForNextCommitment, commitment);
+    // we fetch the on-chain commitment
+    let lastIndexAdded = this.lastIndexAdded.get();
+    this.lastIndexAdded.assertEquals(lastIndexAdded);
+
+    console.log('Internal --------------------');
+    console.log('this.root --> ', this.merkleTreeRoot.get());
+    let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
+    merkleTree.setLeaf(indexForNextCommitment, commitment);
 
     // let newMerkleTreeRoot = merkleTree.getRoot();
     // this.merkleTreeRoot.set(newMerkleTreeRoot);
@@ -131,8 +133,9 @@ let initialBalance = 10_000_000_000;
 // let initialBalance2 = 10_000;
 let initialState = Field(1);
 console.log('ZkAppAddress: ', zkappAddress);
-let zkapp = new MixerZkApp(zkappAddress);
 
+initialIndex = new Field(0);
+let zkapp = new MixerZkApp(zkappAddress);
 if (doProofs) {
   console.log('compile');
   await MixerZkApp.compile();
@@ -175,32 +178,17 @@ let tx2 = await Mina.transaction(harpoFeePayer, () => {
   let update = AccountUpdate.createSigned(harpoFeePayer);
   //The userAddress is funced
   update.send({ to: userAccountAddress, amount: 20 });
-  console.log('Funding Harpo Wallet');
+  console.log('User account wallet funded');
 });
 
 //Sending transaction
-/**
- * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
- */
-
-/**
- * Nullifier: H ( Spending Key, rho )
- * Spending key: Public key
- * Rho: Private key
- */
-
-async function createNullifier(publicKey: PublicKey) {
-  let keyString = publicKey.toFields();
-  let secretField = Field.random();
-  let nullifierHash = Poseidon.hash([...keyString, secretField]);
-
-  return nullifierHash;
-}
 console.log('Second TX');
 await tx2.send();
 console.log('UserWallet funded succesfully');
-// console.log('initial state: ' + zkapp.x.get());
-let accountsHarpo = zkapp.account;
+
+/**
+ * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
+ */
 let nullifier = await createNullifier(userAccountAddress);
 let commitment = await createCommitment(nullifier);
 console.log('User PB: ' + JSON.stringify(userAccountAddress));
@@ -212,6 +200,20 @@ console.log(
 console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
 console.log(`Nullifier ` + nullifier);
 console.log(`Commitment  ` + commitment);
+
+/**
+ * Function to create Nullifier Nullifier: H ( Spending Key, rho )
+ * Spending key: Public key
+ * Rho: Private key
+ */
+
+async function createNullifier(publicKey: PublicKey) {
+  let keyString = publicKey.toFields();
+  let secretField = Field.random();
+  let nullifierHash = Poseidon.hash([...keyString, secretField]);
+
+  return nullifierHash;
+}
 
 /**
  * Function to create  the Commitment C(0) = H(S(0),N(0))
@@ -268,10 +270,10 @@ console.log(
 // //We will set a experimental commitment to our Merkle Tree
 // let testHash = Poseidon.hash([Field.random()]);
 
-console.log('update');
-tx = await Mina.transaction(harpoFeePayer, () => {
-  zkapp.update(new Field(3));
-  if (!doProofs) zkapp.sign(zkappKey);
-});
-if (doProofs) await tx.prove();
-await tx.send();
+// console.log('update');
+// tx = await Mina.transaction(harpoFeePayer, () => {
+//   zkapp.update(new Field(3));
+//   if (!doProofs) zkapp.sign(zkappKey);
+// });
+// if (doProofs) await tx.prove();
+// await tx.send();
