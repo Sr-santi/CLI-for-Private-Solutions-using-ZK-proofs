@@ -11,6 +11,7 @@ import {
   isReady,
   Permissions,
   DeployArgs,
+  Experimental,
   // Bool,
   PublicKey,
   // Circuit,
@@ -172,6 +173,7 @@ console.log('UserWallet funded succesfully');
 // console.log('initial state: ' + zkapp.x.get());
 let accountsHAarpo = zkapp.account;
 let nullifier = await createNullifier(userAccountAddress);
+let commitment = await createCommitment(nullifier);
 console.log('User PB: ' + JSON.stringify(userAccountAddress));
 console.log('User PK: ' + userAccountKey);
 console.log(`User balance: ${Mina.getBalance(userAccountAddress)} MINA`);
@@ -180,8 +182,9 @@ console.log(
 );
 console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
 console.log(`Nullifier ` + nullifier);
+console.log(`Commitment  ` + commitment);
 /**
- * Creting the Commitment C(0) = H(S(0),N(0))
+ * Function to create  the Commitment C(0) = H(S(0),N(0))
  */
 async function createCommitment(nullifier: any) {
   let secret = Field.random();
@@ -194,6 +197,7 @@ async function createCommitment(nullifier: any) {
  1. Create Merkle Tree witness 
  2.
  */
+class MerkleWitness extends Experimental.MerkleWitness(8) {}
 
 // console.log('update');
 // tx = await Mina.transaction(harpoFeePayer, () => {
