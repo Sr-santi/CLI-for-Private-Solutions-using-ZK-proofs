@@ -200,6 +200,7 @@ async function createCommitment(nullifier: any) {
 //Creating the Merkle wiotness
 
 class MerkleWitness extends Experimental.MerkleWitness(8) {}
+// @state(Field) commitment = State<Field>();
 
 // console.log('update');
 // tx = await Mina.transaction(harpoFeePayer, () => {
