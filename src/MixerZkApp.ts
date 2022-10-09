@@ -159,7 +159,6 @@ let tx2 = await Mina.transaction(harpoFeePayer, () => {
  */
 
 async function createNullifier(publicKey: PublicKey) {
-  let fields = [];
   let keyString = publicKey.toFields();
   let secretField = Field.random();
   let nullifierHash = Poseidon.hash([...keyString, secretField]);
@@ -181,9 +180,19 @@ console.log(
 );
 console.log(`initial balance: ${zkapp.account.balance.get().div(1e9)} MINA`);
 console.log(`Nullifier ` + nullifier);
+/**
+ * Creting the Commitment C(0) = H(S(0),N(0))
+ */
+async function createCommitment(nullifier: any) {
+  let secret = Field.random();
+  let commitment = Poseidon.hash([nullifier, secret]);
+  return commitment;
+}
 
 /**
- *
+ *Merkle Tree implementation 
+ 1. Create Merkle Tree witness 
+ 2.
  */
 
 // console.log('update');
