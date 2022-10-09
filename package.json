@@ -28,6 +28,11 @@
       "prettier --write --ignore-unknown"
     ]
   },
+  "browserify": {
+    "transform": [
+      "es2020"
+    ]
+  },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",
     "@babel/preset-typescript": "^7.16.0",
@@ -45,5 +50,8 @@
   },
   "peerDependencies": {
     "snarkyjs": "^0.6.0"
+  },
+  "dependencies": {
+    "browserify": "^17.0.0"
   }
 }
