@@ -106,7 +106,7 @@ Smart Contract: https://github.com/Sr-santi/mina-eth-bogota-contract
 
 -We are not depositing into the contract.
 
--Using proof of authorization.
+-Using proof of authorization ( With balance )
 
 -Create nullifier Tree and verify if the commitment is inside this Tree before withdrawing.
 
