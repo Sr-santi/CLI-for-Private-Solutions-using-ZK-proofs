@@ -94,10 +94,18 @@ Smart Contract: https://github.com/Sr-santi/mina-eth-bogota-contract
 -Run yarn dev.
 -Open http://localhost:3000/
 
-<img width="1362" alt="image" src="https://user-images.githubusercontent.com/67811126/194763013-231f160a-8d5f-4751-9636-10145018c7db.png">
+# Improvements 🔧
+
+-Validate merkle tree before inserting the commitment into it (Set merkle tree before adding a new leaf)
+-Another withdraw proof needs to be approved to send the funds out.
+-Marking sure you are setting a transition of the Merkle Tree.
+-Calculate the roots of the Merkle Tree.
+-We are not depositing into the contract.
+-Using proof of authorization.
+-Create nullifier Tree and verify if the commitment is inside this Tree before withdrawing.
+-Start exploting the rollup process.
 
 ```
-
 
 ## License
 
