@@ -97,12 +97,19 @@ Smart Contract: https://github.com/Sr-santi/mina-eth-bogota-contract
 # Improvements 🔧
 
 -Validate merkle tree before inserting the commitment into it (Set merkle tree before adding a new leaf)
+
 -Another withdraw proof needs to be approved to send the funds out.
+
 -Marking sure you are setting a transition of the Merkle Tree.
+
 -Calculate the roots of the Merkle Tree.
+
 -We are not depositing into the contract.
+
 -Using proof of authorization.
+
 -Create nullifier Tree and verify if the commitment is inside this Tree before withdrawing.
+
 -Start exploting the rollup process.
 
 ```
