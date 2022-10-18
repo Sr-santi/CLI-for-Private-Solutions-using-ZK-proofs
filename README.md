@@ -108,7 +108,7 @@ Smart Contract: https://github.com/Sr-santi/mina-eth-bogota-contract
 
 -Using proof of authorization ( With balance )
 
--Create nullifier Tree and verify if the commitment is inside this Tree before withdrawing.
+-Create nullifier Tree and verify if the commitment is inside this Tree before withdrawing. ( To avoid double spending )
 
 -Start exploting the rollup process.
 
