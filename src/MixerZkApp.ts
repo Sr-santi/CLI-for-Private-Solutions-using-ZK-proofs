@@ -46,11 +46,12 @@ class MerkleWitness extends Experimental.MerkleWitness(MerkleTreeHeight) {}
 //   hash() {
 //     return Poseidon.hash(this.value.flat());
 //   }
-// }
+//
 let initialIndex: Field = Field.zero;
 export class MixerZkApp extends SmartContract {
   //state variables
   @state(Field) x = State<Field>();
+  // @state(Field) merkleTreeTest = State<Field>();
   @state(Field) merkleTreeRoot = State<Field>();
   @state(Field) lastIndexAdded = State<Field>();
   deploy(args: DeployArgs) {
@@ -66,8 +67,15 @@ export class MixerZkApp extends SmartContract {
     this.merkleTreeRoot.set(merkleTree.getRoot());
     this.lastIndexAdded.set(initialIndex);
   }
-  @method update(y: Field) {
-    console.log('Just for compiling');
+  @method init() {
+    this.x.set(x);
+  }
+  @method updateMerkleTree(y: Field) {
+    let first = this.x.get();
+    this.x.assertEquals(first);
+    console.log('FIRST', first);
+    //  this.x.set(y)
+    //  console.log('Second',this.x.get())
   }
   /**
    *  Insert commitment function
@@ -84,10 +92,11 @@ export class MixerZkApp extends SmartContract {
       'Merkle tree root (pre insertion)',
       this.merkleTreeRoot.get().toString()
     );
-    // console.log('Internal --------------------');
-    // console.log('this.root --> ', this.merkleTreeRoot.get());
-    // let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
-    console.log('COMMITMENT' + commitment);
+    console.log('Internal --------------------');
+    let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
+
+    console.log('COMMITMENT IN INSERT FUNCTION' + commitment);
+    console.log('LAST INDEX ADDED ' + indexForNextCommitment);
     merkleTree.setLeaf(1n, commitment);
 
     let newMerkleTreeRoot = merkleTree.getRoot();
@@ -182,7 +191,22 @@ let userAccountAddress = userAccountKey.toPublicKey();
  */
 async function deposit() {
   console.log('Depositing......');
+  /**
+   * Depositing ttest funcds into an user account
+   */
   await depositTestFunds();
+
+  /**
+   * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
+   */
+  let nullifier = await createNullifier(userAccountAddress);
+  let commitment = await createCommitment(nullifier);
+  console.log('NULLIFIER => ', nullifier);
+  console.log('cOMMITMENT Pre-Insertion =>', commitment);
+
+  //Updating the root of the Merkle Tree
+  // let root = new Field(2)
+  zkapp.insertCommitment(commitment);
   // let balance = verifyAccountBalance()
 }
 deposit();
@@ -205,11 +229,6 @@ function verifyAccountBalance(address: any) {
   console.log(`Balance from ${address} = ${balance} MINA`);
   return balance;
 }
-/**
- * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
- */
-let nullifier = await createNullifier(userAccountAddress);
-let commitment = await createCommitment(nullifier);
 
 /**
  * Function to create Nullifier Nullifier: H ( Spending Key, rho )
@@ -270,24 +289,24 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
  5. Verify with the witness that the commitment is part of the merkle tree path. 
 
  */
-async function verifyTransaction() {
-  let withdrawTx = await Mina.transaction(zkappKey, () => {
-    let update = AccountUpdate.createSigned(zkappKey);
-    let amountToTransfer = 5;
-    let merkleTreeWitness = merkleTree.getWitness(1n);
-    let merkleWitness = new MerkleWitness(merkleTreeWitness);
+// async function verifyTransaction() {
+//   let withdrawTx = await Mina.transaction(zkappKey, () => {
+//     let update = AccountUpdate.createSigned(zkappKey);
+//     let amountToTransfer = 5;
+//     let merkleTreeWitness = merkleTree.getWitness(1n);
+//     let merkleWitness = new MerkleWitness(merkleTreeWitness);
 
-    try {
-      zkapp.verifyProof(commitment, merkleWitness);
-    } catch (e) {
-      console.log('Proof not valid');
-      console.log(e);
-    }
+//     try {
+//       zkapp.verifyProof(commitment, merkleWitness);
+//     } catch (e) {
+//       console.log('Proof not valid');
+//       console.log(e);
+//     }
 
-    update.send({ to: userAccountAddress, amount: amountToTransfer });
-  });
-  await withdrawTx.send();
-}
+//     update.send({ to: userAccountAddress, amount: amountToTransfer });
+//   });
+//   await withdrawTx.send();
+// }
 // function getState(zkappAddress: PublicKey) {
 //   let zkapp = new MixerZkapp(zkappAddress);
 //   let commitment1 = fieldToHex(zkapp.commitment1.get());
