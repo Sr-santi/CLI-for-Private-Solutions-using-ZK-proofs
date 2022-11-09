@@ -180,6 +180,12 @@ let userAccountAddress = userAccountKey.toPublicKey();
  * 3.1 A Secret is created using Poseidon
  * 3.2 A Nullifier is created for avoiding double spending
  * 3.3 The Secret and the Nullifier is hashed and the commitment is created
+ * 4. A note needs to be created
+ *
+ * 4.1 The first function will be generateNote(currency, ammount, deposit), which will return an object note={currency : currency, deposit: deposit, ammount:ammount}
+ * 4.2 Generate not String = Turn note object into string [concataniting strings]
+ * 4.3 Recieves notString and parses an object note
+ *
  * 4. The Merkle path root must be verified.
  * 5. Add commitment to the Merkle Tree
  * 6. Send funds from useraccount to MerkleTree
