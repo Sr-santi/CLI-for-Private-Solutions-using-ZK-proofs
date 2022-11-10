@@ -62,20 +62,22 @@ export class MixerZkApp extends SmartContract {
       send: Permissions.proofOrSignature(),
     });
     this.balance.addInPlace(UInt64.fromNumber(initialBalance));
-
-    // this.x.set(initialState);
     this.merkleTreeRoot.set(merkleTree.getRoot());
     this.lastIndexAdded.set(initialIndex);
   }
   @method init() {
-    this.x.set(x);
+    console.log('Initiating.....');
+    this.x.set(Field(3));
+    // this.x.assertEquals(Field(3));
   }
   @method updateMerkleTree(y: Field) {
     let first = this.x.get();
     this.x.assertEquals(first);
     console.log('FIRST', first);
-    //  this.x.set(y)
-    //  console.log('Second',this.x.get())
+    y.assertEquals(first.mul(first));
+    this.x.set(y);
+    //   //  this.x.set(y)
+    //   //  console.log('Second',this.x.get())
   }
   /**
    *  Insert commitment function
@@ -153,12 +155,14 @@ let isDeploying = null as null | Interface;
 //     return getState(zkappAddress);
 //   },
 // };
+console.log('HERE');
 let tx = await Mina.transaction(minadoFeePayer, () => {
   AccountUpdate.fundNewAccount(minadoFeePayer, { initialBalance });
   zkapp.deploy({ zkappKey });
   console.log('Minado wallet funded succesfully');
 });
 await tx.send().wait();
+console.log('HERE2');
 
 // isDeploying = null;
 // return zkappInterface;
@@ -196,11 +200,15 @@ let userAccountAddress = userAccountKey.toPublicKey();
  * TODO: Replace with Auro wallet Logic
  */
 async function deposit() {
-  console.log('Depositing......');
+  // zkapp.updateMerkleTree(Field(9))
+
+  console.log('Depositing Test funds ......');
+  await depositTestFunds();
+
   /**
    * Depositing ttest funcds into an user account
    */
-  await depositTestFunds();
+  // await depositTestFunds();
 
   /**
    * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
@@ -210,6 +218,12 @@ async function deposit() {
   console.log('NULLIFIER => ', nullifier);
   console.log('cOMMITMENT Pre-Insertion =>', commitment);
 
+  // const updateMerkleTree =   await Mina.transaction(minadoFeePayer, () => {
+  //    zkapp.updateMerkleTree(Field(9));
+  //   zkapp.sign(zkappKey);
+  //   console.log('New state of Merkle Tree => ', zkapp.x.get().toString())
+  //   });
+  //   await updateMerkleTree.send().wait()
   //Updating the root of the Merkle Tree
   // let root = new Field(2)
   zkapp.insertCommitment(commitment);
@@ -221,6 +235,8 @@ async function depositTestFunds() {
   let tx2 = await Mina.transaction(minadoFeePayer, () => {
     AccountUpdate.fundNewAccount(minadoFeePayer);
     let update = AccountUpdate.createSigned(minadoFeePayer);
+    zkapp.init();
+    zkapp.sign(zkappKey);
     //The userAddress is funced
     update.send({ to: userAccountAddress, amount: 20 });
     console.log('User account wallet funded');
@@ -228,6 +244,8 @@ async function depositTestFunds() {
   console.log('Second TX');
   await tx2.send();
   console.log('UserWallet funded succesfully');
+  const num0 = zkapp.x.get();
+  console.log('Initial State Merkle Tree =>>>>>>', num0.toString());
 }
 
 function verifyAccountBalance(address: any) {
