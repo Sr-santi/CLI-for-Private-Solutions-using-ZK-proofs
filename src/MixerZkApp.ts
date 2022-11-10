@@ -73,7 +73,7 @@ export class MixerZkApp extends SmartContract {
   @method updateMerkleTree(y: Field) {
     let first = this.x.get();
     this.x.assertEquals(first);
-    console.log('FIRST', first);
+    // console.log('FIRST', first);
     y.assertEquals(first.mul(first));
     this.x.set(y);
     //   //  this.x.set(y)
@@ -204,7 +204,7 @@ async function deposit() {
 
   console.log('Depositing Test funds ......');
   await depositTestFunds();
-
+  await updateMerkleTree();
   /**
    * Depositing ttest funcds into an user account
    */
@@ -246,6 +246,16 @@ async function depositTestFunds() {
   console.log('UserWallet funded succesfully');
   const num0 = zkapp.x.get();
   console.log('Initial State Merkle Tree =>>>>>>', num0.toString());
+}
+
+async function updateMerkleTree() {
+  let tx2 = await Mina.transaction(minadoFeePayer, () => {
+    zkapp.updateMerkleTree(Field(9));
+    zkapp.sign(zkappKey);
+  });
+  await tx2.send();
+  const num0 = zkapp.x.get();
+  console.log('POST  State Merkle Tree =>>>>>>', num0.toString());
 }
 
 function verifyAccountBalance(address: any) {
