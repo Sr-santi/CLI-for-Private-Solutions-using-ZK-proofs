@@ -47,7 +47,7 @@ const MerkleTreeInit = Experimental.MerkleTree;
 const merkleTree = new MerkleTreeInit(MerkleTreeHeight);
 class MerkleWitness extends Experimental.MerkleWitness(MerkleTreeHeight) {}
 //
-let initialIndex: Field = Field.zero;
+let initialIndex: Field = new Field(0n);
 export class MixerZkApp extends SmartContract {
   //state variables
   @state(Field) x = State<Field>();
@@ -78,11 +78,6 @@ export class MixerZkApp extends SmartContract {
     // this.x.assertEquals(Field(3));
   }
   @method updateMerkleTree(commitment: Field) {
-    // let first = this.x.get();
-    // this.x.assertEquals(first);
-    // // console.log('FIRST', first);
-    // y.assertEquals(first.mul(first));
-    // this.x.set(y);
     /**
      * Getting Merkle Tree and Merkle Tree root
      */
@@ -91,13 +86,27 @@ export class MixerZkApp extends SmartContract {
     let merkleTreeRoot = this.merkleTreeRoot.get();
     this.merkleTreeRoot.assertEquals(merkleTreeRoot);
     //TODO : CHANGE INDEX
-    merkleTree.setLeaf(1n, commitment);
+    //Getting the last index
+    let lastIndex = this.lastIndexAdded.get();
+    this.lastIndexAdded.assertEquals(lastIndex);
+    let lastIndexFormated = lastIndex.toBigInt();
+    console.log(
+      'Index where the commitment will be inserted ',
+      lastIndexFormated
+    );
+    merkleTree.setLeaf(lastIndexFormated, commitment);
     let newMerkleTree = merkleTree;
     // this.merkleTreeVariable.assertEquals(newMerkleTree);
     // this.merkleTreeVariable.set(newMerkleTree);
     let newMerkleTreeRoot = newMerkleTree.getRoot();
     // newMerkleTreeRoot.assertEquals(newMerkleTreeRoot.getRoot())
+    //Updating the Merkle Tree root
     this.merkleTreeRoot.set(newMerkleTreeRoot);
+    // Updating the index variable
+    let newIndex = lastIndex.add(new Field(1));
+    console.log('New index', newIndex.toBigInt());
+    newIndex.assertEquals(lastIndex.add(new Field(1)));
+    this.lastIndexAdded.set(newIndex);
     /**
      * Insertion of commitment
      */
@@ -281,6 +290,8 @@ async function updateMerkleTree(commitment: Field) {
   await tx3.send();
   const rawMerkleTree = zkapp.merkleTreeRoot.get().toString();
   console.log('POST State Merkle Tree =>>>>>>', rawMerkleTree);
+  const newIndex = zkapp.lastIndexAdded.get().toBigInt();
+  console.log('POST State Index =>>>>>>', newIndex);
 }
 
 function verifyAccountBalance(address: any) {
