@@ -39,12 +39,19 @@ type Witness = { isLeft: boolean; sibling: Field }[];
 //   hash() {
 //     return Poseidon.hash(this.value.flat());
 //   }
+const MerkleTreeHeight = 4;
+/** Merkle Tree
+ * Instance for global reference. It must be stored off-chain.
+ */
+const MerkleTreeInit = Experimental.MerkleTree;
+const merkleTree = new MerkleTreeInit(MerkleTreeHeight);
+class MerkleWitness extends Experimental.MerkleWitness(MerkleTreeHeight) {}
 //
 let initialIndex: Field = Field.zero;
 export class MixerZkApp extends SmartContract {
   //state variables
   @state(Field) x = State<Field>();
-  @state(Field) merkleTreeVariable = State<MerkleTree>();
+  // @state(Field) merkleTreeVariable = State<MerkleTree>();
   @state(Field) merkleTreeRoot = State<Field>();
   @state(Field) lastIndexAdded = State<Field>();
 
@@ -60,17 +67,12 @@ export class MixerZkApp extends SmartContract {
   }
   @method init() {
     console.log('Initiating Merkle Tree.....');
-    const MerkleTreeHeight = 4;
-    /** Merkle Tree
-     * Instance for global reference. It must be stored off-chain.
-     */
-    const MerkleTree = Experimental.MerkleTree;
-    const merkleTree = new MerkleTree(MerkleTreeHeight);
-    class MerkleWitness extends Experimental.MerkleWitness(MerkleTreeHeight) {}
     const merkleTreeRoot = merkleTree.getRoot();
-    //Setting the state of the Merkle Tree
+    // //Setting the state of the Merkle Tree
     this.merkleTreeRoot.set(merkleTreeRoot);
-    this.merkleTreeRoot.assertEquals(merkleTree.getRoot());
+    console.log('Merkle Tree => ', merkleTree);
+    // console.log('Merkle Tree Root =>> ', this.merkleTreeRoot.get())
+    // this.merkleTreeRoot.assertEquals(merkleTree.getRoot());
     //  this.merkleTreeVariable.set(merkleTree)
     //  this.merkleTreeVariable.assertEquals(merkleTree);
     // this.x.assertEquals(Field(3));
@@ -84,23 +86,22 @@ export class MixerZkApp extends SmartContract {
     /**
      * Getting Merkle Tree and Merkle Tree root
      */
-    let merkleTree = this.merkleTreeVariable.get();
-    this.merkleTreeVariable.assertEquals(merkleTree);
+    // let merkleTree = this.merkleTreeVariable.get();
+    // this.merkleTreeVariable.assertEquals(merkleTree);
     let merkleTreeRoot = this.merkleTreeRoot.get();
     this.merkleTreeRoot.assertEquals(merkleTreeRoot);
-
+    //TODO : CHANGE INDEX
     merkleTree.setLeaf(1n, commitment);
     let newMerkleTree = merkleTree;
-    this.merkleTreeVariable.assertEquals(newMerkleTree);
-    this.merkleTreeVariable.set(newMerkleTree);
+    // this.merkleTreeVariable.assertEquals(newMerkleTree);
+    // this.merkleTreeVariable.set(newMerkleTree);
     let newMerkleTreeRoot = newMerkleTree.getRoot();
     // newMerkleTreeRoot.assertEquals(newMerkleTreeRoot.getRoot())
     this.merkleTreeRoot.set(newMerkleTreeRoot);
-
     /**
      * Insertion of commitment
      */
-    console.log('COMMITMENT IN INSERT FUNCTION' + commitment);
+    // console.log('COMMITMENT IN INSERT FUNCTION' + commitment);
     //  console.log('LAST INDEX ADDED ' + indexForNextCommitment);
 
     //   //  this.x.set(y)
@@ -182,10 +183,15 @@ console.log('HERE');
 let tx = await Mina.transaction(minadoFeePayer, () => {
   AccountUpdate.fundNewAccount(minadoFeePayer, { initialBalance });
   zkapp.deploy({ zkappKey });
+  zkapp.init();
+  zkapp.sign(zkappKey);
   console.log('Minado wallet funded succesfully');
 });
 await tx.send().wait();
-console.log('HERE2');
+console.log(
+  'Initial state of the merkle tree =>>',
+  zkapp.merkleTreeRoot.get().toString()
+);
 
 // isDeploying = null;
 // return zkappInterface;
@@ -230,8 +236,8 @@ async function deposit() {
    */
   let nullifier = await createNullifier(userAccountAddress);
   let commitment = await createCommitment(nullifier);
-  console.log('NULLIFIER => ', nullifier);
-  console.log('cOMMITMENT Pre-Insertion =>', commitment);
+  console.log('NULLIFIER => ', nullifier.toString());
+  console.log('cOMMITMENT Pre-Insertion =>', commitment.toString());
   console.log('Depositing Test funds ......');
   await depositTestFunds();
   await updateMerkleTree(commitment);
@@ -257,8 +263,7 @@ async function depositTestFunds() {
   let tx2 = await Mina.transaction(minadoFeePayer, () => {
     AccountUpdate.fundNewAccount(minadoFeePayer);
     let update = AccountUpdate.createSigned(minadoFeePayer);
-    zkapp.init();
-    zkapp.sign(zkappKey);
+    // zkapp.init();
     //The userAddress is funced
     update.send({ to: userAccountAddress, amount: 20 });
     console.log('User account wallet funded');
@@ -266,22 +271,16 @@ async function depositTestFunds() {
   console.log('Second TX');
   await tx2.send();
   console.log('UserWallet funded succesfully');
-  const rawMerkleTree = zkapp.merkleTreeVariable.get();
-  console.log('Initial State Merkle Tree =>>>>>>', rawMerkleTree);
-  const merkleTreeRoot = zkapp.merkleTreeRoot.get();
-  console.log('Initial State Merkle Tree ROOT =>>>>>>', merkleTreeRoot);
 }
 
 async function updateMerkleTree(commitment: Field) {
-  let tx2 = await Mina.transaction(minadoFeePayer, () => {
+  let tx3 = await Mina.transaction(minadoFeePayer, () => {
     zkapp.updateMerkleTree(commitment);
     zkapp.sign(zkappKey);
   });
-  await tx2.send();
-  const rawMerkleTree = zkapp.merkleTreeVariable.get();
+  await tx3.send();
+  const rawMerkleTree = zkapp.merkleTreeRoot.get().toString();
   console.log('POST State Merkle Tree =>>>>>>', rawMerkleTree);
-  const merkleTreeRoot = zkapp.merkleTreeRoot.get();
-  console.log('POST State Merkle Tree ROOT =>>>>>>', merkleTreeRoot);
 }
 
 function verifyAccountBalance(address: any) {
