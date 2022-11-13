@@ -61,7 +61,7 @@ export class MixerZkApp extends SmartContract {
     this.merkleTreeRoot.set(merkleTreeRoot);
   }
   //
-  //TODO  Verify Merke Tree before inserting a commitment
+  //TODO:  Verify Merke Tree before inserting a commitment
   @method updateMerkleTree(commitment: Field) {
     console.log('Updating the Merkle Tree .....');
 
@@ -125,24 +125,11 @@ let zkapp = new MixerZkApp(zkappAddress);
 //This initial balance will fund our minadoFeePayer
 let initialBalance = 10_000_000_000;
 
-//TODO: ADD STATE INTERFACE
+//TODO: ADD STATE INTERFACE IF NECESSARY
 type Interface = {
   // getState(): { commitment1: string; commitment2: string, hits1: string, hits2: string, turn: string, guessX: string, guessY: string };
 };
-let isDeploying = null as null | Interface;
 
-// async function deploy() {
-// if (isDeploying) return isDeploying;
-// tic('compile');
-// let { verificationKey } = await MixerZkApp.compile();
-// console.log("VERIFICATION", verificationKey)
-// toc();
-//TODO ADD MERKLE TREE STATE VARIABLE
-// let zkappInterface = {
-//   getState() {
-//     return getState(zkappAddress);
-//   },
-// };
 console.log('HERE');
 let tx = await Mina.transaction(minadoFeePayer, () => {
   AccountUpdate.fundNewAccount(minadoFeePayer, { initialBalance });
@@ -157,10 +144,6 @@ console.log(
   zkapp.merkleTreeRoot.get().toString()
 );
 
-// isDeploying = null;
-// return zkappInterface;
-// }
-
 //TODO ADD INTEGRATION WITH ARURO WALLET
 
 // Creating a user account that wants to use Harpo
@@ -170,7 +153,7 @@ let userAccountAddress = userAccountKey.toPublicKey();
 
 /**
  * Deposit  Logic
- * 1. A Minado  account that will pay the gas feeds is funded DONE IN Deploy function
+ * 1. A Minado  account that will pay the gas fees is funded DONE IN Deploy function
  * 2. A userAccount is  funded with the purpose of depositing into our harpoAccount.
  * Note: In a real implementation this would not happen as the account already has a balance
  * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
@@ -194,7 +177,10 @@ let userAccountAddress = userAccountKey.toPublicKey();
  */
 async function deposit() {
   // zkapp.updateMerkleTree(Field(9))
-
+  /**
+   * 2. A userAccount is  funded with the purpose of depositing into our harpoAccount.
+   */
+  await depositTestFunds();
   /**
    * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
    */
@@ -203,23 +189,10 @@ async function deposit() {
   console.log('NULLIFIER => ', nullifier.toString());
   console.log('cOMMITMENT Pre-Insertion =>', commitment.toString());
   console.log('Depositing Test funds ......');
-  await depositTestFunds();
   await updateMerkleTree(commitment);
   /**
-   * Depositing ttest funcds into an user account
+   * TODO: Add note creation
    */
-  // await depositTestFunds();
-
-  // const updateMerkleTree =   await Mina.transaction(minadoFeePayer, () => {
-  //    zkapp.updateMerkleTree(Field(9));
-  //   zkapp.sign(zkappKey);
-  //   console.log('New state of Merkle Tree => ', zkapp.x.get().toString())
-  //   });
-  //   await updateMerkleTree.send().wait()
-  //Updating the root of the Merkle Tree
-  // let root = new Field(2)
-  // zkapp.insertCommitment(commitment);
-  // let balance = verifyAccountBalance()
 }
 deposit();
 
@@ -227,8 +200,6 @@ async function depositTestFunds() {
   let tx2 = await Mina.transaction(minadoFeePayer, () => {
     AccountUpdate.fundNewAccount(minadoFeePayer);
     let update = AccountUpdate.createSigned(minadoFeePayer);
-    // zkapp.init();
-    //The userAddress is funced
     update.send({ to: userAccountAddress, amount: 20 });
     console.log('User account wallet funded');
   });
@@ -277,13 +248,7 @@ async function createCommitment(nullifier: any) {
   let commitment = Poseidon.hash([nullifier, secret]);
   return commitment;
 }
-/**
- * Merkle Tree insert commitment function
- *
- */
-async function insertCommitment(commitment: Field) {
-  // await zkapp.insertCommitment(commitment);
-}
+
 /**
  * After the commitment is added into the merkle Tree and the note is returned, the money should be send to the zkApp account
  * @param sender
@@ -299,8 +264,6 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
   });
   await tx.send();
 }
-
-//TODO ADD STATE VARIABLES  + Merkle Tree verification
 
 /**
  * 
