@@ -28,17 +28,6 @@ await isReady;
 
 type Witness = { isLeft: boolean; sibling: Field }[];
 
-// class Board extends CircuitValue {
-//   @matrixProp(Field, BOARD_WIDTH, BOARD_WIDTH) value: Field[][];
-
-//   constructor(value: number[][]) {
-//     super();
-//     this.value = value.map((row) => row.map(Field));
-//   }
-
-//   hash() {
-//     return Poseidon.hash(this.value.flat());
-//   }
 const MerkleTreeHeight = 4;
 /** Merkle Tree
  * Instance for global reference. It must be stored off-chain.
@@ -66,27 +55,24 @@ export class MixerZkApp extends SmartContract {
     this.lastIndexAdded.set(initialIndex);
   }
   @method init() {
-    console.log('Initiating Merkle Tree.....');
+    console.log('Initiating Merkle Tree .....');
     const merkleTreeRoot = merkleTree.getRoot();
     // //Setting the state of the Merkle Tree
     this.merkleTreeRoot.set(merkleTreeRoot);
-    console.log('Merkle Tree => ', merkleTree);
-    // console.log('Merkle Tree Root =>> ', this.merkleTreeRoot.get())
-    // this.merkleTreeRoot.assertEquals(merkleTree.getRoot());
-    //  this.merkleTreeVariable.set(merkleTree)
-    //  this.merkleTreeVariable.assertEquals(merkleTree);
-    // this.x.assertEquals(Field(3));
   }
+  //
+  //TODO  Verify Merke Tree before inserting a commitment
   @method updateMerkleTree(commitment: Field) {
+    console.log('Updating the Merkle Tree .....');
+
     /**
-     * Getting Merkle Tree and Merkle Tree root
+     * Getting Merkle Tree root
      */
-    // let merkleTree = this.merkleTreeVariable.get();
-    // this.merkleTreeVariable.assertEquals(merkleTree);
     let merkleTreeRoot = this.merkleTreeRoot.get();
     this.merkleTreeRoot.assertEquals(merkleTreeRoot);
-    //TODO : CHANGE INDEX
+
     //Getting the last index
+
     let lastIndex = this.lastIndexAdded.get();
     this.lastIndexAdded.assertEquals(lastIndex);
     let lastIndexFormated = lastIndex.toBigInt();
@@ -94,54 +80,23 @@ export class MixerZkApp extends SmartContract {
       'Index where the commitment will be inserted ',
       lastIndexFormated
     );
+
+    //Modifying the Merkle Tree, inserting the commitment
+
     merkleTree.setLeaf(lastIndexFormated, commitment);
     let newMerkleTree = merkleTree;
-    // this.merkleTreeVariable.assertEquals(newMerkleTree);
-    // this.merkleTreeVariable.set(newMerkleTree);
     let newMerkleTreeRoot = newMerkleTree.getRoot();
-    // newMerkleTreeRoot.assertEquals(newMerkleTreeRoot.getRoot())
+    newMerkleTreeRoot.assertEquals(newMerkleTree.getRoot());
+
     //Updating the Merkle Tree root
     this.merkleTreeRoot.set(newMerkleTreeRoot);
+
     // Updating the index variable
     let newIndex = lastIndex.add(new Field(1));
     console.log('New index', newIndex.toBigInt());
     newIndex.assertEquals(lastIndex.add(new Field(1)));
     this.lastIndexAdded.set(newIndex);
-    /**
-     * Insertion of commitment
-     */
-    // console.log('COMMITMENT IN INSERT FUNCTION' + commitment);
-    //  console.log('LAST INDEX ADDED ' + indexForNextCommitment);
-
-    //   //  this.x.set(y)
-    //   //  console.log('Second',this.x.get())
   }
-  /**
-   *  Insert commitment function
-   * @param commitment Coming from commitment to the Merkle Tree
-   */
-  // insertCommitment(commitment: Field) {
-  //   // we fetch the on-chain commitment
-  //   let lastIndexAdded = this.lastIndexAdded.get();
-  //   this.lastIndexAdded.assertEquals(lastIndexAdded);
-
-  //   let merkleTreeRoot = this.merkleTreeRoot.get();
-  //   this.merkleTreeRoot.assertEquals(merkleTreeRoot);
-  //   console.log(
-  //     'Merkle tree root (pre insertion)',
-  //     this.merkleTreeRoot.get().toString()
-  //   );
-  //   console.log('Internal --------------------');
-  //   let indexForNextCommitment = this.lastIndexAdded.get().toBigInt() + 1n;
-
-  //   let newMerkleTreeRoot = merkleTree.getRoot();
-  //   this.merkleTreeRoot.set(newMerkleTreeRoot);
-  //   console.log(
-  //     'Merkle tree root (post insertion)',
-  //     this.merkleTreeRoot.get().toString()
-  //   );
-  //   // console.log('this.root --> ', this.merkleTreeRoot.get());
-  // }
   /**
    * Verification Method for Merkle Tree
    */
