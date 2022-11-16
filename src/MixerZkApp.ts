@@ -22,7 +22,7 @@ import {
 } from 'snarkyjs';
 import { MerkleTree } from 'snarkyjs/dist/node/lib/merkle_tree';
 // import { tic, toc } from './tictoc';
-
+import { DepositClass } from './DepositClass';
 // export { deploy };
 
 await isReady;
@@ -44,6 +44,11 @@ export class MixerZkApp extends SmartContract {
   // @state(Field) merkleTreeVariable = State<MerkleTree>();
   @state(Field) merkleTreeRoot = State<Field>();
   @state(Field) lastIndexAdded = State<Field>();
+
+  events = {
+    deposit: DepositClass,
+    nullifier: Field,
+  };
 
   deploy(args: DeployArgs) {
     super.deploy(args);
@@ -98,6 +103,8 @@ export class MixerZkApp extends SmartContract {
     console.log('New index', newIndex.toBigInt());
     newIndex.assertEquals(lastIndex.add(new Field(1)));
     this.lastIndexAdded.set(newIndex);
+
+    //Emiting a deposit event
   }
   /**
    * Verification Method for Merkle Tree
