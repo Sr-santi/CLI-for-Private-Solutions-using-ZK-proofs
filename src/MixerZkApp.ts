@@ -86,6 +86,7 @@ export class MixerZkApp extends SmartContract {
     merkleTree.setLeaf(lastIndexFormated, commitment);
     let newMerkleTree = merkleTree;
     let newMerkleTreeRoot = newMerkleTree.getRoot();
+    //Validating that the root is valid
     newMerkleTreeRoot.assertEquals(newMerkleTree.getRoot());
 
     //Updating the Merkle Tree root
