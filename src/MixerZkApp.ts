@@ -18,6 +18,7 @@ import {
   DeployArgs,
   Permissions,
   UInt64,
+  Int64,
 } from 'snarkyjs';
 import { MerkleTree } from 'snarkyjs/dist/node/lib/merkle_tree';
 // import { tic, toc } from './tictoc';
@@ -86,6 +87,7 @@ export class MixerZkApp extends SmartContract {
     merkleTree.setLeaf(lastIndexFormated, commitment);
     let newMerkleTree = merkleTree;
     let newMerkleTreeRoot = newMerkleTree.getRoot();
+    //Validating that the root is valid
     newMerkleTreeRoot.assertEquals(newMerkleTree.getRoot());
 
     //Updating the Merkle Tree root
@@ -175,12 +177,22 @@ let userAccountAddress = userAccountKey.toPublicKey();
  * Note: Will not happen in a real implementation
  * TODO: Replace with Auro wallet Logic
  */
-async function deposit() {
+async function deposit(amount: Number) {
+  //TODO: Should this be INT or UINT?
   // zkapp.updateMerkleTree(Field(9))
   /**
    * 2. A userAccount is  funded with the purpose of depositing into our harpoAccount.
    */
   await depositTestFunds();
+  let initialBalanceUser = getAccountBalance(userAccountAddress).toString();
+  //TODO: BUG HERE
+  let initialBalanceZkApp = getAccountBalance(zkappAddress).toString();
+  let initialBalanceFeePayer = getAccountBalance(
+    minadoFeePayerAccount
+  ).toString();
+  console.log(`INTIAL BALANCE USER ACCOUNT:${initialBalanceUser} MINA`);
+  console.log(`INTIAL BALANCE ZkApp:${initialBalanceZkApp} MINA`);
+  console.log(`INTIAL BALANCE FeePayer:${initialBalanceFeePayer} MINA`);
   /**
    * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
    */
@@ -191,14 +203,17 @@ async function deposit() {
   console.log('NULLIFIER => ', nullifier.toString());
   console.log('COMMITMENT Pre-Insertion =>', commitment.toString());
   console.log('Depositing Test funds ......');
+
   await updateMerkleTree(commitment);
+  await sendFundstoMixer(userAccountKey, amount);
+
   /**
    * TODO: Add note creation
    */
   const deposit = createDeposit(nullifier, secret);
   const note = {
     currency: 'Mina',
-    amount: new UInt64(100),
+    amount: new UInt64(amount),
     depositPreimage: deposit.preimage,
   };
 
@@ -206,7 +221,7 @@ async function deposit() {
   console.log('Note string => ', noteString);
 }
 
-deposit();
+deposit(100);
 
 async function depositTestFunds() {
   let tx2 = await Mina.transaction(minadoFeePayer, () => {
@@ -232,10 +247,8 @@ async function updateMerkleTree(commitment: Field) {
   console.log('POST State Index =>>>>>>', newIndex);
 }
 
-function verifyAccountBalance(address: any) {
-  let balance = Mina.getBalance(userAccountAddress);
-  console.log(`Balance from ${address} = ${balance} MINA`);
-  return balance;
+function getAccountBalance(address: any) {
+  return Mina.getBalance(address);
 }
 
 /**
@@ -271,6 +284,7 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
     //The userAddress is funced
     update.send({ to: zkappAddress, amount: amount });
     console.log('Sendind Funds to  Harpo Wallet');
+    //Parece que la zkapp no puede recibir fondos
   });
   await tx.send();
 }
