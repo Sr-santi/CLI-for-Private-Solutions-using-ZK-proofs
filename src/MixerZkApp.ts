@@ -22,7 +22,7 @@ import {
 } from 'snarkyjs';
 import { MerkleTree } from 'snarkyjs/dist/node/lib/merkle_tree';
 // import { tic, toc } from './tictoc';
-import { DepositClass } from './DepositClass';
+import DepositClass from './proof_system/models/DepositClass.js';
 // export { deploy };
 
 await isReady;
@@ -105,6 +105,13 @@ export class MixerZkApp extends SmartContract {
     this.lastIndexAdded.set(newIndex);
 
     //Emiting a deposit event
+    console.log('Emiting event.....');
+    let deposit = {
+      commitment: commitment,
+      leafIndex: lastIndex,
+      timeStamp: new Field(2),
+    };
+    this.emitEvent('deposit', deposit);
   }
   /**
    * Verification Method for Merkle Tree
@@ -212,6 +219,9 @@ async function deposit(amount: Number) {
   console.log('Depositing Test funds ......');
 
   await updateMerkleTree(commitment);
+  let rawEvents = zkapp.fetchEvents();
+  let despositEvents = (await rawEvents).filter((a) => (a.type = 'deposit'));
+  console.log('DEPOSIT EVENT => ', despositEvents);
   await sendFundstoMixer(userAccountKey, amount);
 
   /**
@@ -225,16 +235,25 @@ async function deposit(amount: Number) {
   };
 
   const noteString = generateNoteString(note);
-  console.log('Note string => ', noteString);
+  let finalBalanceUser = getAccountBalance(userAccountAddress).toString();
+  //TODO: BUG HERE
+  let finalBalanceZkApp = getAccountBalance(zkappAddress).toString();
+  let finalBalanceFeePayer = getAccountBalance(
+    minadoFeePayerAccount
+  ).toString();
+  console.log(`INTIAL BALANCE USER ACCOUNT:${finalBalanceUser} MINA`);
+  console.log(`INTIAL BALANCE ZkApp:${finalBalanceZkApp} MINA`);
+  console.log(`INTIAL BALANCE FeePayer:${finalBalanceFeePayer} MINA`);
 }
-
+//TODO: Check why when sending more 100 mina is causing an overflow
+//Overflow happens if there is not enough money to cover the gas fees.
 deposit(100);
 
 async function depositTestFunds() {
   let tx2 = await Mina.transaction(minadoFeePayer, () => {
     AccountUpdate.fundNewAccount(minadoFeePayer);
     let update = AccountUpdate.createSigned(minadoFeePayer);
-    update.send({ to: userAccountAddress, amount: 20 });
+    update.send({ to: userAccountAddress, amount: 1000 });
     console.log('User account wallet funded');
   });
   console.log('Second TX');
@@ -285,8 +304,7 @@ function createCommitment(nullifier: Field, secret: Field) {
  * @param amount
  */
 async function sendFundstoMixer(sender: PrivateKey, amount: any) {
-  let tx = await Mina.transaction(minadoFeePayer, () => {
-    // AccountUpdate.fundNewAccount(minadoFeePayer);
+  let tx = await Mina.transaction(sender, () => {
     let update = AccountUpdate.createSigned(sender);
     //The userAddress is funced
     update.send({ to: zkappAddress, amount: amount });
