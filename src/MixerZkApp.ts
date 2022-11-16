@@ -185,15 +185,27 @@ async function deposit() {
    * 3. A commitment needs to be created  C(0) = H(S(0),N(0))
    */
   let nullifier = await createNullifier(userAccountAddress);
-  let commitment = await createCommitment(nullifier);
+  let secret = Field.random();
+  let commitment = await createCommitment(nullifier, secret);
+  console.log('SECRET => ', secret.toString());
   console.log('NULLIFIER => ', nullifier.toString());
-  console.log('cOMMITMENT Pre-Insertion =>', commitment.toString());
+  console.log('COMMITMENT Pre-Insertion =>', commitment.toString());
   console.log('Depositing Test funds ......');
   await updateMerkleTree(commitment);
   /**
    * TODO: Add note creation
    */
+  const deposit = createDeposit(nullifier, secret);
+  const note = {
+    currency: 'Mina',
+    amount: new UInt64(100),
+    depositPreimage: deposit.preimage,
+  };
+
+  const noteString = generateNoteString(note);
+  console.log('Note string => ', noteString);
 }
+
 deposit();
 
 async function depositTestFunds() {
@@ -234,8 +246,8 @@ function verifyAccountBalance(address: any) {
 
 async function createNullifier(publicKey: PublicKey) {
   let keyString = publicKey.toFields();
-  let secretField = Field.random();
-  let nullifierHash = Poseidon.hash([...keyString, secretField]);
+  let secret = Field.random();
+  let nullifierHash = Poseidon.hash([...keyString, secret]);
 
   return nullifierHash;
 }
@@ -243,10 +255,8 @@ async function createNullifier(publicKey: PublicKey) {
 /**
  * Function to create  the Commitment C(0) = H(S(0),N(0))
  */
-async function createCommitment(nullifier: any) {
-  let secret = Field.random();
-  let commitment = Poseidon.hash([nullifier, secret]);
-  return commitment;
+function createCommitment(nullifier: Field, secret: Field) {
+  return Poseidon.hash([nullifier, secret]);
 }
 
 /**
@@ -307,3 +317,59 @@ async function sendFundstoMixer(sender: PrivateKey, amount: any) {
 
 //   return { commitment1, commitment2, hits1, hits2, turn, guessX, guessY };
 // }
+
+/*
+Currency, amount, netID, note => deposit(secret, nullifier)
+*/
+type Deposit = {
+  nullifier: Field;
+  secret: Field;
+  preimage: string;
+  commitment: Field;
+};
+
+type Note = {
+  currency: string;
+  amount: UInt64;
+  depositPreimage: string;
+};
+
+function createDeposit(nullifier: Field, secret: Field): Deposit {
+  let deposit = {
+    nullifier,
+    secret,
+    preimage: nullifier.toString().concat(secret.toString()),
+    commitment: createCommitment(nullifier, secret),
+  };
+
+  return deposit;
+}
+
+function createDepositFromPreimage(depositPreimage: string): Deposit {
+  const nullifier = new Field(depositPreimage?.slice(0, 31));
+  const secret = new Field(depositPreimage?.slice(31, 62));
+
+  return createDeposit(nullifier, secret);
+}
+
+function generateNoteString(note: Note): string {
+  return `Minado&${note.currency}&${note.amount}&${note.depositPreimage}&Minado`;
+}
+
+function parseNoteString(noteString: string): Note {
+  const noteRegex =
+    /Minado&(?<currency>\w+)&(?<amount>[\d.]+)&0x(?<depositPreimage>[0-9a-fA-F]{124})&Minado/g;
+  const match = noteRegex.exec(noteString);
+
+  if (!match) {
+    throw new Error('The note has invalid format');
+  }
+
+  const depositPreimage = match.groups?.depositPreimage;
+
+  return {
+    currency: match.groups?.currency!,
+    amount: new UInt64(match.groups?.ammount),
+    depositPreimage: depositPreimage!,
+  };
+}
