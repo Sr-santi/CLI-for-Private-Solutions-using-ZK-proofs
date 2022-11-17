@@ -19,4 +19,7 @@ export default class DepositClass extends CircuitValue {
     this.leafIndex = leafIndex;
     this.timeStamp = timeStamp;
   }
+  toFieldsCommitment(): Field[] {
+    return this.commitment.toFields();
+  }
 }

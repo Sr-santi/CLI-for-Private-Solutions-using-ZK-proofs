@@ -109,6 +109,7 @@ export class MixerZkApp extends SmartContract {
     let deposit = {
       commitment: commitment,
       leafIndex: lastIndex,
+      //TODO: CHANGE
       timeStamp: new Field(2),
     };
     this.emitEvent('deposit', deposit);
@@ -220,9 +221,19 @@ async function deposit(amount: Number) {
 
   await updateMerkleTree(commitment);
   let rawEvents = zkapp.fetchEvents();
-  let despositEvents = (await rawEvents).filter((a) => (a.type = 'deposit'));
+  let despositEvents = (await rawEvents).filter((a) => (a.type = `deposit`));
+  //TODO: ADD HOW TO GET A COMMITMENT FROM THE RETURNED OBJECT
   // let eventCommitment=despositEvents[0].event.commitment
-  console.log('DEPOSIT EVENT => ', despositEvents);
+  //TODO: ADD LOGIC FOR N NUMBER OF EVENTS
+  let commitmentEvent = despositEvents[0].event
+    .toFields(despositEvents[0].event)[0]
+    .toString();
+  let leafIndexEvent = despositEvents[0].event
+    .toFields(despositEvents[0].event)[1]
+    .toString();
+  let timeStamp = despositEvents[0].event
+    .toFields(despositEvents[0].event)[2]
+    .toString();
   await sendFundstoMixer(userAccountKey, amount);
 
   /**
