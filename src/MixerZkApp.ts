@@ -221,6 +221,7 @@ async function deposit(amount: Number) {
   await updateMerkleTree(commitment);
   let rawEvents = zkapp.fetchEvents();
   let despositEvents = (await rawEvents).filter((a) => (a.type = 'deposit'));
+  // let eventCommitment=despositEvents[0].event.commitment
   console.log('DEPOSIT EVENT => ', despositEvents);
   await sendFundstoMixer(userAccountKey, amount);
 
