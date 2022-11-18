@@ -119,7 +119,7 @@ export class MixerZkApp extends SmartContract {
   /**
    * Verification Method for Merkle Tree
    */
-  @method verifyProof(commitment: Field, merkleProof: MerkleWitness) {
+  @method verifyMerkleProof(commitment: Field, merkleProof: MerkleWitness) {
     let witnessMerkleRoot = merkleProof.calculateRoot(commitment);
     //TODO: SHOULD COMO OFF-CHAIN
     let merkleTreeRoot = merkleTree.getRoot();
@@ -222,10 +222,11 @@ async function deposit(amount: Number) {
   console.log('Depositing Test funds ......');
 
   await updateMerkleTree(commitment);
-  let rawEvents = zkapp.fetchEvents();
-  let despositEvents = (await rawEvents).filter((a) => (a.type = `deposit`));
-  let normalizedDepositEvents = normalizeDepositEvents(despositEvents);
-  console.log('NORMALIZED DEPOSIT EVENTTTT=> ', normalizedDepositEvents);
+  //TODO: DELETE
+  // let rawEvents = zkapp.fetchEvents();
+  // let despositEvents = (await rawEvents).filter((a) => (a.type = `deposit`));
+  // let normalizedDepositEvents = normalizeDepositEvents(despositEvents);
+  // console.log('NORMALIZED DEPOSIT EVENTTTT=> ', normalizedDepositEvents);
   //TODO: ADD HOW TO GET A COMMITMENT FROM THE RETURNED OBJECT
   // let eventCommitment=despositEvents[0].event.commitment
   //TODO: ADD LOGIC FOR N NUMBER OF EVENTS
@@ -260,6 +261,7 @@ async function deposit(amount: Number) {
   console.log(`INTIAL BALANCE USER ACCOUNT:${finalBalanceUser} MINA`);
   console.log(`INTIAL BALANCE ZkApp:${finalBalanceZkApp} MINA`);
   console.log(`INTIAL BALANCE FeePayer:${finalBalanceFeePayer} MINA`);
+  return noteString;
 }
 //TODO: Change type
 function normalizeDepositEvents(depositEvent: any) {
@@ -279,7 +281,6 @@ function normalizeDepositEvents(depositEvent: any) {
 }
 //TODO: Check why when sending more 100 mina is causing an overflow
 //Overflow happens if there is not enough money to cover the gas fees.
-deposit(100);
 
 async function depositTestFunds() {
   let tx2 = await Mina.transaction(minadoFeePayer, () => {
@@ -399,7 +400,8 @@ function parseNoteString(noteString: string): Note {
     amount: new UInt64(match.groups?.ammount),
     depositPreimage: depositPreimage!,
   };
-  /**
+}
+/**
  * 
  * Withdraw and Merkle Tree implementation 
  * 
@@ -408,70 +410,94 @@ function parseNoteString(noteString: string): Note {
  3. Validate Merkle Proof and nullifier.Fetch Nullifier events. 
  4. A nullifier event should be created in the moment of withdraw to avoid double spending. 
  */
-  async function withdraw(noteString: string) {
-    let parsedNote = parseNoteString(noteString);
-    let deposit = createDepositFromPreimage(parsedNote.depositPreimage);
-    console.log('DEPOSIT  =>>> ');
-  }
-  //TODO: Review these functions.
-  /**
-   *
-   * @param deposit Created from a note
-   * Should return a Merkle Proof that will be validated by the smart contract
-   */
-  async function validateProof(deposit: Deposit) {
-    /**
-     * Merkle Tree Validation.
-     */
-    //Find the commitment in the events
-    let depositEvents = await getDepositEvents();
-    //TODO: ADD FUNCTION TO GET EVENTS
-    let commitment = deposit.commitment;
-
-    //Verifying the nullifier
-  }
-  async function getDepositEvents() {
-    let rawEvents = await zkapp.fetchEvents();
-    let despositEvents = (await rawEvents).filter((a) => (a.type = `deposit`));
-    let normalizedDepositEvents = normalizeDepositEvents(despositEvents);
-    return normalizedDepositEvents;
-  }
-  async function getNullifierEvents() {
-    let rawEvents = await zkapp.fetchEvents();
-    return rawEvents.filter((a) => (a.type = `nullifier`));
-  }
-  async function isSpend(nullifier: any) {
-    let nullfierEvents = getNullifierEvents();
-    console.log('NULLFIER EVENTS => ', nullfierEvents);
-  }
-  // async function verifyTransaction(leafIndex,commitment) {
-  //   let withdrawTx = await Mina.transaction(zkappKey, () => {
-  //     let update = AccountUpdate.createSigned(zkappKey);
-  //     let amountToTransfer = 5;
-  //     let merkleTreeWitness = merkleTree.getWitness(1n);
-  //     let merkleWitness = new MerkleWitness(merkleTreeWitness);
-
-  //     try {
-  //       zkapp.verifyProof(commitment, merkleWitness);
-  //     } catch (e) {
-  //       console.log('Proof not valid');
-  //       console.log(e);
-  //     }
-
-  //     update.send({ to: userAccountAddress, amount: amountToTransfer });
-  //   });
-  //   await withdrawTx.send();
-  // }
-  // function getState(zkappAddress: PublicKey) {
-  //   let zkapp = new MixerZkapp(zkappAddress);
-  //   let commitment1 = fieldToHex(zkapp.commitment1.get());
-  //   let commitment2 = fieldToHex(zkapp.commitment2.get());
-  //   let hits1 = zkapp.hits1.get().toString();
-  //   let hits2 = zkapp.hits2.get().toString();
-  //   let turn = zkapp.turn.get().toString();
-  //   let guessX = zkapp.guessX.get().toString();
-  //   let guessY = zkapp.guessY.get().toString();
-
-  //   return { commitment1, commitment2, hits1, hits2, turn, guessX, guessY };
-  // }
+async function withdraw(noteString: string) {
+  let parsedNote = parseNoteString(noteString);
+  console.log('NOTE PARSEDD WITHDRAW=>', parsedNote);
+  let deposit = createDepositFromPreimage(parsedNote.depositPreimage);
+  console.log('DEPOSIT IN WITHDRAW  =>>> ', deposit);
+  validateProof(deposit);
 }
+//TODO: Review these functions.
+/**
+ *
+ * @param deposit Created from a note
+ * Should return a Merkle Proof that will be validated by the smart contract
+ */
+async function validateProof(deposit: Deposit) {
+  /**
+   * Merkle Tree Validation.
+   */
+  //Find the commitment in the events
+  let depositEvents = await getDepositEvents();
+  //TODO: LEAVE AS FIELD IF NECCESARY
+  let commitmentDeposit = deposit.commitment.toString();
+  console.log('DEPOSIT EVENTS WITHDRAW => ', depositEvents);
+  let eventWithCommitment = depositEvents.find(
+    (e) => e.commitment === commitmentDeposit
+  );
+  console.log('NORMALIZED EVENT COMING WITHDRAW', eventWithCommitment);
+  let leafIndex = eventWithCommitment?.leafIndex.toBigInt();
+  console.log('LEAF INDEXXX coming from event', leafIndex);
+  //TODO: Add validations of the event
+  //Recostructing the Merkle Tree
+  // let merkleTreeWitness = merkleTree.getWitness(leafIndex);
+  // let merkleWitness = new MerkleWitness(merkleTreeWitness);
+
+  //  try {
+  //   zkapp.verifyProof(commitment, merkleWitness);
+  // } catch (e) {
+  //   console.log('Proof not valid');
+  //   console.log(e);
+  //   }
+  //Verifying the nullifier
+}
+async function getDepositEvents() {
+  let rawEvents = await zkapp.fetchEvents();
+  let despositEvents = (await rawEvents).filter((a) => (a.type = `deposit`));
+  let normalizedDepositEvents = normalizeDepositEvents(despositEvents);
+  return normalizedDepositEvents;
+}
+async function getNullifierEvents() {
+  let rawEvents = await zkapp.fetchEvents();
+  return rawEvents.filter((a) => (a.type = `nullifier`));
+}
+async function isSpend(nullifier: any) {
+  let nullfierEvents = getNullifierEvents();
+  console.log('NULLFIER EVENTS => ', nullfierEvents);
+}
+async function initTest() {
+  let noteString = await deposit(100);
+  console.log('NOTE STRING FROM DEPOSIT => ', noteString);
+  withdraw(noteString);
+}
+initTest();
+// async function verifyTransaction(leafIndex,commitment) {
+//   let withdrawTx = await Mina.transaction(zkappKey, () => {
+//     let update = AccountUpdate.createSigned(zkappKey);
+//     let amountToTransfer = 5;
+//     let merkleTreeWitness = merkleTree.getWitness(1n);
+//     let merkleWitness = new MerkleWitness(merkleTreeWitness);
+
+//     try {
+//       zkapp.verifyProof(commitment, merkleWitness);
+//     } catch (e) {
+//       console.log('Proof not valid');
+//       console.log(e);
+//     }
+
+//     update.send({ to: userAccountAddress, amount: amountToTransfer });
+//   });
+//   await withdrawTx.send();
+// }
+// function getState(zkappAddress: PublicKey) {
+//   let zkapp = new MixerZkapp(zkappAddress);
+//   let commitment1 = fieldToHex(zkapp.commitment1.get());
+//   let commitment2 = fieldToHex(zkapp.commitment2.get());
+//   let hits1 = zkapp.hits1.get().toString();
+//   let hits2 = zkapp.hits2.get().toString();
+//   let turn = zkapp.turn.get().toString();
+//   let guessX = zkapp.guessX.get().toString();
+//   let guessY = zkapp.guessY.get().toString();
+
+//   return { commitment1, commitment2, hits1, hits2, turn, guessX, guessY };
+// }
