@@ -388,6 +388,7 @@ function parseNoteString(noteString: string): Note {
   const noteRegex =
     /Minado&(?<currency>\w+)&(?<amount>[\d.]+)&0x(?<depositPreimage>[0-9a-fA-F]{124})&Minado/g;
   const match = noteRegex.exec(noteString);
+  console.log('NOTE STRINGGGG ERORRR => ', noteString);
 
   if (!match) {
     throw new Error('The note has invalid format');
