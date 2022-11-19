@@ -376,8 +376,8 @@ function createDeposit(nullifier: Field, secret: Field): Deposit {
 }
 
 function createDepositFromPreimage(depositPreimage: string): Deposit {
-  const nullifier = new Field(depositPreimage?.slice(0, 31));
-  const secret = new Field(depositPreimage?.slice(31, 62));
+  const nullifier = new Field(depositPreimage?.slice(0, 77));
+  const secret = new Field(depositPreimage?.slice(77));
 
   return createDeposit(nullifier, secret);
 }
@@ -416,7 +416,7 @@ async function withdraw(noteString: string) {
   let parsedNote = parseNoteString(noteString);
   console.log('NOTE PARSEDD WITHDRAW=>', parsedNote);
   let deposit = createDepositFromPreimage(parsedNote.depositPreimage);
-  console.log('DEPOSIT IN WITHDRAW  =>>> ', deposit);
+  console.log('DEPOSIT AFTER PREIMAGE  =>>> ', deposit);
   validateProof(deposit);
 }
 //TODO: Review these functions.
@@ -434,12 +434,14 @@ async function validateProof(deposit: Deposit) {
   //TODO: LEAVE AS FIELD IF NECCESARY
   let commitmentDeposit = deposit.commitment.toString();
   console.log('DEPOSIT EVENTS WITHDRAW => ', depositEvents);
+  console.log('COMMITMENT COMING', commitmentDeposit);
+  //Search for an event with a given commitment
   let eventWithCommitment = depositEvents.find(
     (e) => e.commitment === commitmentDeposit
   );
   console.log('NORMALIZED EVENT COMING WITHDRAW', eventWithCommitment);
-  let leafIndex = eventWithCommitment?.leafIndex.toBigInt();
-  console.log('LEAF INDEXXX coming from event', leafIndex);
+  // let leafIndex = eventWithCommitment?.leafIndex;
+  // console.log('LEAF INDEXXX coming from event', leafIndex);
   //TODO: Add validations of the event
   //Recostructing the Merkle Tree
   // let merkleTreeWitness = merkleTree.getWitness(leafIndex);
