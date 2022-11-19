@@ -46,7 +46,9 @@ export class MixerZkApp extends SmartContract {
   // @state(Field) merkleTreeVariable = State<MerkleTree>();
   @state(Field) merkleTreeRoot = State<Field>();
   @state(Field) lastIndexAdded = State<Field>();
-
+  @state(PublicKey) storageServerPublicKey = State<PublicKey>();
+  @state(Field) storageNumber = State<Field>();
+  @state(Field) storageTreeRoot = State<Field>();
   events = {
     deposit: DepositClass,
     nullifier: NullifierClass,
@@ -63,9 +65,12 @@ export class MixerZkApp extends SmartContract {
     // this.balance.addInPlace(new UInt64(initialBalance));
     this.lastIndexAdded.set(initialIndex);
   }
-  @method initState() {
+  @method initState(storageServerPublicKey: PublicKey) {
     console.log('Initiating Merkle Tree .....');
     const merkleTreeRoot = merkleTree.getRoot();
+    this.storageServerPublicKey.set(storageServerPublicKey);
+    //Used to make sure that we are storing states
+    this.storageNumber.set(Field.zero);
     //Setting the state of the Merkle Tree
     this.merkleTreeRoot.set(merkleTreeRoot);
   }
