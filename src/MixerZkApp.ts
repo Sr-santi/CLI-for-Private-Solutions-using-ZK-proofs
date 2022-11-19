@@ -222,7 +222,7 @@ async function deposit(amount: Number) {
   let rawEvents = zkapp.fetchEvents();
   let despositEvents = (await rawEvents).filter((a) => (a.type = 'deposit'));
   // let eventCommitment=despositEvents[0].event.commitment
-  console.log('DEPOSIT EVENT => ', despositEvents);
+  console.log('DEPOSIT EVENT => ', despositEvents[0].event);
   await sendFundstoMixer(userAccountKey, amount);
 
   /**
@@ -398,7 +398,7 @@ function generateNoteString(note: Note): string {
 
 function parseNoteString(noteString: string): Note {
   const noteRegex =
-    /Minado&(?<currency>\w+)&(?<amount>[\d.]+)&0x(?<depositPreimage>[0-9a-fA-F]{124})&Minado/g;
+    /Minado&(?<currency>\w+)&(?<amount>[\d.]+)&(?<depositPreimage>[0-9a-fA-F]{153,154})&Minado/g;
   const match = noteRegex.exec(noteString);
 
   if (!match) {
@@ -409,7 +409,7 @@ function parseNoteString(noteString: string): Note {
 
   return {
     currency: match.groups?.currency!,
-    amount: new UInt64(match.groups?.ammount),
+    amount: new UInt64(match.groups?.amount),
     depositPreimage: depositPreimage!,
   };
 }
