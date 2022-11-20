@@ -20,6 +20,7 @@ import {
   UInt64,
   Int64,
   MerkleTree,
+  Signature,
 } from 'snarkyjs';
 import {
   OffChainStorage,
@@ -75,15 +76,21 @@ export class MixerZkApp extends SmartContract {
     console.log('Connecting to the server....');
     let serverPublicKey = await offChainStorageSetup();
     console.log('Connected to the server => PB key => ', serverPublicKey);
+    this.storageServerPublicKey.set(serverPublicKey);
+
     //TODO: Check the functionality of this line
-    // this.balance.addInPlace(new UInt64(initialBalance));
     this.lastIndexAdded.set(initialIndex);
   }
   @method initState() {
     console.log('Initiating Merkle Tree .....');
     const merkleTreeRoot = merkleTree.getRoot();
     //Setting the state of the Merkle Tree
+    //TODO: DELETE
     this.merkleTreeRoot.set(merkleTreeRoot);
+    const emptyTreeRoot = new MerkleTree(8).getRoot();
+    this.storageTreeRoot.set(emptyTreeRoot);
+    //Used to make sure that we are storing states
+    this.storageNumber.set(Field.zero);
   }
   //
   //TODO:  Verify Merke Tree before inserting a commitment
@@ -91,13 +98,10 @@ export class MixerZkApp extends SmartContract {
     console.log('Updating the Merkle Tree .....');
 
     /**
-     * Getting Merkle Tree root
+     * Getting Merkle Tree State in the contract
      */
     let merkleTreeRoot = this.merkleTreeRoot.get();
     this.merkleTreeRoot.assertEquals(merkleTreeRoot);
-
-    //Getting the last index
-
     let lastIndex = this.lastIndexAdded.get();
     this.lastIndexAdded.assertEquals(lastIndex);
     let lastIndexFormated = lastIndex.toBigInt();
@@ -132,6 +136,56 @@ export class MixerZkApp extends SmartContract {
       timeStamp: new Field(2),
     };
     this.emitEvent('deposit', deposit);
+  }
+  @method updateOffchain(
+    leafIsEmpty: Bool,
+    oldLeaf: Field,
+    commitment: Field,
+    path: MerkleWitness8,
+    storedNewRootNumber: Field,
+    storedNewRootSignature: Signature
+  ) {
+    //Get the state of the contract
+    const storedRoot = this.storageTreeRoot.get();
+    this.storageTreeRoot.assertEquals(storedRoot);
+
+    let storedNumber = this.storageNumber.get();
+    this.storageNumber.assertEquals(storedNumber);
+
+    let storageServerPublicKey = this.storageServerPublicKey.get();
+    this.storageServerPublicKey.assertEquals(storageServerPublicKey);
+    console.log('STORAGE SERVER PB => ', storageServerPublicKey);
+
+    //Check that the new leaf is greated than the old leaf
+    let leaf = [oldLeaf];
+    let newLeaf = [commitment];
+
+    // newLeaf can be a function of the existing leaf
+    newLeaf[0].assertGt(leaf[0]);
+
+    const updates = [
+      {
+        leaf,
+        leafIsEmpty,
+        newLeaf,
+        newLeafIsEmpty: Bool(false),
+        leafWitness: path,
+      },
+    ];
+
+    //Fucntion to verify that the update really came from the existing
+
+    const storedNewRoot = OffChainStorage.assertRootUpdateValid(
+      storageServerPublicKey,
+      storedNumber,
+      storedRoot,
+      updates,
+      storedNewRootNumber,
+      storedNewRootSignature
+    );
+
+    this.storageTreeRoot.set(storedNewRoot);
+    this.storageNumber.set(storedNewRootNumber);
   }
   //TODO: ADD NEW IMPLEMENTATION OF MERKLE WITNESS
   // /**
