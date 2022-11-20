@@ -73,17 +73,14 @@ export class MixerZkApp extends SmartContract {
       editState: Permissions.proofOrSignature(),
       send: Permissions.proofOrSignature(),
     });
-    console.log('Connecting to the server....');
-    let serverPublicKey = await offChainStorageSetup();
-    console.log('Connected to the server => PB key => ', serverPublicKey);
-    this.storageServerPublicKey.set(serverPublicKey);
-
+    // let serverPublicKey = await offChainStorageSetup()
     //TODO: Check the functionality of this line
     this.lastIndexAdded.set(initialIndex);
   }
-  @method initState() {
+  @method initState(storageServerPublicKey: PublicKey) {
     console.log('Initiating Merkle Tree .....');
     const merkleTreeRoot = merkleTree.getRoot();
+    this.storageServerPublicKey.set(storageServerPublicKey);
     //Setting the state of the Merkle Tree
     //TODO: DELETE
     this.merkleTreeRoot.set(merkleTreeRoot);
@@ -204,6 +201,10 @@ export class MixerZkApp extends SmartContract {
 const Local = Mina.LocalBlockchain();
 Mina.setActiveInstance(Local);
 const storageServerAddress = 'http://localhost:3001';
+const serverPublicKey = await OffChainStorage.getPublicKey(
+  storageServerAddress,
+  NodeXMLHttpRequest
+);
 // a test account that pays all the fees, and puts additional funds into the zkapp
 //For our Mixer case the minadoFeePayer will be the HarpoAccount
 let minadoFeePayer = Local.testAccounts[0].privateKey;
@@ -225,21 +226,15 @@ console.log('HERE');
 let tx = await Mina.transaction(minadoFeePayer, () => {
   AccountUpdate.fundNewAccount(minadoFeePayer);
   zkapp.deploy({ zkappKey: zkappKey });
-  zkapp.initState();
+  zkapp.initState(serverPublicKey);
   zkapp.sign(zkappKey);
   console.log('Minado wallet funded succesfully');
 });
 await tx.send();
 //todo: change functions
-async function offChainStorageSetup() {
-  // Connecting to the server
-  const storageServerAddress = 'http://localhost:3001';
-  const serverPublicKey = await OffChainStorage.getPublicKey(
-    storageServerAddress,
-    NodeXMLHttpRequest
-  );
-  return serverPublicKey;
-}
+// async function offChainStorageSetup() {
+// Connecting to the server
+// }
 async function updateMerkleTreeOffchain(commitment: Field) {
   //Get the root of the Merkle Tree
   // get the existing tree
