@@ -21,10 +21,19 @@ import {
   Int64,
   MerkleTree,
 } from 'snarkyjs';
+import {
+  OffChainStorage,
+  MerkleWitness8,
+} from 'experimental-zkapp-offchain-storage';
 // import { tic, toc } from './tictoc';
 import DepositClass from './proof_system/models/DepositClass.js';
 import NullifierClass from './proof_system/models/NullifierClass.js';
 import { Events } from 'snarkyjs/dist/node/lib/account_update.js';
+import fs from 'fs';
+import XMLHttpRequestTs, { XMLHttpRequest } from 'xmlhttprequest-ts';
+
+const NodeXMLHttpRequest =
+  XMLHttpRequestTs.XMLHttpRequest as any as typeof XMLHttpRequest;
 // export { deploy };
 
 await isReady;
@@ -46,19 +55,26 @@ export class MixerZkApp extends SmartContract {
   // @state(Field) merkleTreeVariable = State<MerkleTree>();
   @state(Field) merkleTreeRoot = State<Field>();
   @state(Field) lastIndexAdded = State<Field>();
+  //State variables offchain storage
+  @state(PublicKey) storageServerPublicKey = State<PublicKey>();
+  @state(Field) storageNumber = State<Field>();
+  @state(Field) storageTreeRoot = State<Field>();
 
   events = {
     deposit: DepositClass,
     nullifier: NullifierClass,
   };
 
-  deploy(args: DeployArgs) {
+  async deploy(args: DeployArgs) {
     super.deploy(args);
     this.setPermissions({
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
       send: Permissions.proofOrSignature(),
     });
+    console.log('Connecting to the server....');
+    let serverPublicKey = await offChainStorageSetup();
+    console.log('Connected to the server => PB key => ', serverPublicKey);
     //TODO: Check the functionality of this line
     // this.balance.addInPlace(new UInt64(initialBalance));
     this.lastIndexAdded.set(initialIndex);
@@ -160,7 +176,45 @@ let tx = await Mina.transaction(minadoFeePayer, () => {
   console.log('Minado wallet funded succesfully');
 });
 await tx.send();
-// console.log(
+//todo: change functions
+async function offChainStorageSetup() {
+  // Connecting to the server
+  const storageServerAddress = 'http://localhost:3001';
+  const serverPublicKey = await OffChainStorage.getPublicKey(
+    storageServerAddress,
+    NodeXMLHttpRequest
+  );
+  return serverPublicKey;
+}
+// async function updateMerkleTreeOffchain (commitment:Field){
+//    //Get the root of the Merkle Tree
+//    // get the existing tree
+//    const treeRoot = await zkapp.storageTreeRoot.get();
+//    const idx2fields = await OffChainStorage.get(
+//      storageServerAddress,
+//      zkappAddress,
+//      MerkleTreeHeight,
+//      treeRoot,
+//      NodeXMLHttpRequest
+//    );
+//   // RECONSTRUCTING THE TREE
+//   const tree = OffChainStorage.mapToTree(MerkleTreeHeight, idx2fields);
+//   const currentIndex=zkapp.lastIndexAdded
+//   //Crearing the merkle witness
+//   //TODO: Tutn leaf index into a BigInt
+//   const leafWitness = new MerkleWitness8(tree.getWitness(currentIndex.toBigInt()));
+
+//    // get the previopus commitment
+//    const priorCommitmentInLeaf = !idx2fields.has(currentIndex);
+//    let priorCommitment: Field;
+//    if (!priorCommitmentInLeaf) {
+//     priorCommitment = idx2fields.get(currentIndex)![0];
+//      //Change for new commitment
+//    } else {
+//      priorCommitment = Field.zero;
+
+// }
+
 //   'Initial state of the merkle tree =>>',
 //   zkapp.merkleTreeRoot.get().toString()
 // );
@@ -417,7 +471,7 @@ async function withdraw(noteString: string) {
   console.log('NOTE PARSEDD WITHDRAW=>', parsedNote);
   let deposit = createDepositFromPreimage(parsedNote.depositPreimage);
   console.log('DEPOSIT AFTER PREIMAGE  =>>> ', deposit);
-  validateProof(deposit);
+  let proof = await validateProof(deposit);
 }
 //TODO: Review these functions.
 /**
@@ -440,6 +494,8 @@ async function validateProof(deposit: Deposit) {
     (e) => e.commitment === commitmentDeposit
   );
   console.log('NORMALIZED EVENT COMING WITHDRAW', eventWithCommitment);
+  //TODO: Change this
+  return true;
   // let leafIndex = eventWithCommitment?.leafIndex;
   // console.log('LEAF INDEXXX coming from event', leafIndex);
   //TODO: Add validations of the event
