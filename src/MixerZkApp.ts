@@ -41,7 +41,7 @@ await isReady;
 
 type Witness = { isLeft: boolean; sibling: Field }[];
 
-const MerkleTreeHeight = 4;
+const MerkleTreeHeight = 8;
 /** Merkle Tree
  * Instance for global reference. It must be stored off-chain.
  */
@@ -148,7 +148,7 @@ export class MixerZkApp extends SmartContract {
     //Get the state of the contract
     const storedRoot = this.storageTreeRoot.get();
     this.storageTreeRoot.assertEquals(storedRoot);
-
+    console.log('INITAL STATE OF THE ROOT OFF-CHAIN', storedRoot.toString());
     let storedNumber = this.storageNumber.get();
     this.storageNumber.assertEquals(storedNumber);
 
@@ -159,9 +159,6 @@ export class MixerZkApp extends SmartContract {
     //Check that the new leaf is greated than the old leaf
     let leaf = [oldLeaf];
     let newLeaf = [commitment];
-
-    // newLeaf can be a function of the existing leaf
-    newLeaf[0].assertGt(leaf[0]);
 
     const updates = [
       {
@@ -186,6 +183,8 @@ export class MixerZkApp extends SmartContract {
 
     this.storageTreeRoot.set(storedNewRoot);
     this.storageNumber.set(storedNewRootNumber);
+
+    //TODO: ADD INDEX LOGIC
   }
   //TODO: ADD NEW IMPLEMENTATION OF MERKLE WITNESS
   // /**
@@ -204,6 +203,7 @@ export class MixerZkApp extends SmartContract {
 // setup
 const Local = Mina.LocalBlockchain();
 Mina.setActiveInstance(Local);
+const storageServerAddress = 'http://localhost:3001';
 // a test account that pays all the fees, and puts additional funds into the zkapp
 //For our Mixer case the minadoFeePayer will be the HarpoAccount
 let minadoFeePayer = Local.testAccounts[0].privateKey;
@@ -240,35 +240,81 @@ async function offChainStorageSetup() {
   );
   return serverPublicKey;
 }
-// async function updateMerkleTreeOffchain (commitment:Field){
-//    //Get the root of the Merkle Tree
-//    // get the existing tree
-//    const treeRoot = await zkapp.storageTreeRoot.get();
-//    const idx2fields = await OffChainStorage.get(
-//      storageServerAddress,
-//      zkappAddress,
-//      MerkleTreeHeight,
-//      treeRoot,
-//      NodeXMLHttpRequest
-//    );
-//   // RECONSTRUCTING THE TREE
-//   const tree = OffChainStorage.mapToTree(MerkleTreeHeight, idx2fields);
-//   const currentIndex=zkapp.lastIndexAdded
-//   //Crearing the merkle witness
-//   //TODO: Tutn leaf index into a BigInt
-//   const leafWitness = new MerkleWitness8(tree.getWitness(currentIndex.toBigInt()));
+async function updateMerkleTreeOffchain(commitment: Field) {
+  //Get the root of the Merkle Tree
+  // get the existing tree
+  /**
+   * TODO: CHANGE FOR REAL LAST INDEX WHEN REFACTOR IS COMPLETED
+   */
+  //  let index =zkapp.lastIndexAdded.get()
+  //  zkapp.lastIndexAdded.assertEquals(index);
+  const index = BigInt(Math.floor(Math.random() * 4));
+  console.log('UPDATE MERKLE OFF-CHAIN FUNCTION STARTS ');
+  const treeRoot = await zkapp.storageTreeRoot.get();
+  const idx2fields = await OffChainStorage.get(
+    storageServerAddress,
+    zkappAddress,
+    MerkleTreeHeight,
+    treeRoot,
+    NodeXMLHttpRequest
+  );
+  // RECONSTRUCTING THE TREE
+  const tree = OffChainStorage.mapToTree(MerkleTreeHeight, idx2fields);
+  //Crearing the merkle witness
+  //TODO: Tutn leaf index into a BigInt
+  const leafWitness = new MerkleWitness8(tree.getWitness(index));
 
-//    // get the previopus commitment
-//    const priorCommitmentInLeaf = !idx2fields.has(currentIndex);
-//    let priorCommitment: Field;
-//    if (!priorCommitmentInLeaf) {
-//     priorCommitment = idx2fields.get(currentIndex)![0];
-//      //Change for new commitment
-//    } else {
-//      priorCommitment = Field.zero;
+  // get the previopus commitment
+  const priorCommitmentInLeaf = !idx2fields.has(index);
+  let priorCommitment: Field;
+  //TODO:CHECK THIS LOGIC
+  if (!priorCommitmentInLeaf) {
+    priorCommitment = idx2fields.get(index)![0];
+    //Change for new commitment
+  } else {
+    priorCommitment = Field.zero;
+  }
+  // update the leaf, and save it in the storage server
+  idx2fields.set(index, [commitment]);
+  const [storedNewStorageNumber, storedNewStorageSignature] =
+    await OffChainStorage.requestStore(
+      storageServerAddress,
+      zkappAddress,
+      MerkleTreeHeight,
+      idx2fields,
+      NodeXMLHttpRequest
+    );
+  console.log('storedNewStorageNumber =>>.', storedNewStorageNumber);
+  console.log(
+    'changing index',
+    index,
+    'from',
+    priorCommitment.toString(),
+    'to',
+    commitment.toString()
+  );
+  console.log('LEAF NUMBER =>>', commitment.toString());
+  //update the smart contract
+  let transaction = await Mina.transaction(minadoFeePayer, () => {
+    zkapp.updateOffchain(
+      Bool(priorCommitmentInLeaf),
+      priorCommitment,
+      commitment,
+      leafWitness,
+      storedNewStorageNumber,
+      storedNewStorageSignature
+    );
+    zkapp.sign(zkappKey);
+  });
+  await transaction.send();
 
-// }
-
+  let postIntertionRoot = zkapp.storageTreeRoot.get();
+  zkapp.storageTreeRoot.assertEquals(postIntertionRoot);
+  console.log(
+    'OFF-CHAIN ROOT POST IMPLEMENTATION',
+    postIntertionRoot.toString()
+  );
+}
 //   'Initial state of the merkle tree =>>',
 //   zkapp.merkleTreeRoot.get().toString()
 // );
@@ -332,6 +378,7 @@ async function deposit(amount: Number) {
   console.log('Depositing Test funds ......');
 
   await updateMerkleTree(commitment);
+  await updateMerkleTreeOffchain(commitment);
   //TODO: DELETE
   // let rawEvents = zkapp.fetchEvents();
   // let despositEvents = (await rawEvents).filter((a) => (a.type = `deposit`));
