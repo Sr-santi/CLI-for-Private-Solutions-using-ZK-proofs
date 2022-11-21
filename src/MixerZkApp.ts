@@ -38,13 +38,7 @@ const NodeXMLHttpRequest =
 // export { deploy };
 
 await isReady;
-export {
-  deploy,
-  depositTestFunds,
-  deposit,
-  getAccountBalance,
-  returnAddresses,
-};
+// export { deploy ,depositTestFunds, deposit,getAccountBalance,returnAddresses};
 
 type Witness = { isLeft: boolean; sibling: Field }[];
 
