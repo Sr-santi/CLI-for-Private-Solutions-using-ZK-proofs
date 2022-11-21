@@ -38,6 +38,13 @@ const NodeXMLHttpRequest =
 // export { deploy };
 
 await isReady;
+export {
+  deploy,
+  depositTestFunds,
+  deposit,
+  getAccountBalance,
+  returnAddresses,
+};
 
 type Witness = { isLeft: boolean; sibling: Field }[];
 
@@ -183,18 +190,19 @@ export class MixerZkApp extends SmartContract {
 
     //TODO: ADD INDEX LOGIC
   }
-  //TODO: ADD NEW IMPLEMENTATION OF MERKLE WITNESS
-  // /**
-  //  * Verification Method for Merkle Tree
-  //  */
-  // @method verifyMerkleProof(commitment: Field, merkleProof: MerkleWitness) {
-  //   let witnessMerkleRoot = merkleProof.calculateRoot(commitment);
-  //   //TODO: SHOULD COMO OFF-CHAIN
-  //   let merkleTreeRoot = merkleTree.getRoot();
-  //   this.merkleTreeRoot.assertEquals(merkleTreeRoot);
+  // TODO: ADD NEW IMPLEMENTATION OF MERKLE WITNESS
+  /**
+   * Verification Method for Merkle Tree
+   */
+  @method verifyMerkleProof(commitment: Field, merkleProof: MerkleWitness8) {
+    let witnessMerkleRoot = merkleProof.calculateRoot(commitment);
+    console.log('PROOF VERIFICATION ROOT => ', witnessMerkleRoot.toString());
+    //TODO: SHOULD COMO OFF-CHAIN
+    let merkleTreeRoot = merkleTree.getRoot();
+    this.merkleTreeRoot.assertEquals(merkleTreeRoot);
 
-  //   witnessMerkleRoot.assertEquals(merkleTreeRoot);
-  // }
+    witnessMerkleRoot.assertEquals(merkleTreeRoot);
+  }
 }
 
 // setup
@@ -310,6 +318,14 @@ async function updateMerkleTreeOffchain(commitment: Field) {
     postIntertionRoot.toString()
   );
 }
+async function returnAddresses() {
+  let object = {
+    user: userAccountAddress,
+    zkapp: zkappAddress,
+    feePayer: minadoFeePayerAccount,
+  };
+  return object;
+}
 //   'Initial state of the merkle tree =>>',
 //   zkapp.merkleTreeRoot.get().toString()
 // );
@@ -423,7 +439,7 @@ function normalizeDepositEvents(depositEvent: any) {
     let eventsNormalized = element.toFields(element);
     //TODO:CHeck if we want this as string
     let object = {
-      commitment: eventsNormalized[0].toString(),
+      commitment: eventsNormalized[0],
       leafIndex: eventsNormalized[1].toString(),
       timeStamp: eventsNormalized[2].toString(),
     };
@@ -471,7 +487,14 @@ function getAccountBalance(address: any) {
 async function createNullifier(publicKey: PublicKey) {
   let keyString = publicKey.toFields();
   let secret = Field.random();
+  if (secret.toString().trim().length !== 77) {
+    secret = Field.random();
+  }
+  //TODO: DELETE
+  console.log('SECREETTTTTT => ', secret.toString());
+  //TODO: Sometimes this has is a lenght sometimes is another one
   let nullifierHash = Poseidon.hash([...keyString, secret]);
+  console.log('NULLFIERHASH', nullifierHash.toString());
 
   return nullifierHash;
 }
@@ -573,29 +596,46 @@ async function validateProof(deposit: Deposit) {
   //Find the commitment in the events
   let depositEvents = await getDepositEvents();
   //TODO: LEAVE AS FIELD IF NECCESARY
-  let commitmentDeposit = deposit.commitment.toString();
+  // console.log('deposit after note => ')
+  let commitmentDeposit = deposit.commitment;
+  //TODO PUT AMMOUNT INTO A VARIABLE
   console.log('DEPOSIT EVENTS WITHDRAW => ', depositEvents);
-  console.log('COMMITMENT COMING', commitmentDeposit);
+  console.log('COMMITMENT COMING', commitmentDeposit.toString());
+  console.log('COMMITMENT IN EVENT FIELD', depositEvents[0].commitment);
+  console.log(
+    'COMMITMENT IN EVENT STRING',
+    depositEvents[0].commitment.toString()
+  );
+  console.log(
+    'IS THE COMMITMENT THE SAME?',
+    depositEvents[0].commitment == commitmentDeposit
+  );
   //Search for an event with a given commitment
   let eventWithCommitment = depositEvents.find(
-    (e) => e.commitment === commitmentDeposit
+    (e) => e.commitment.toString() === commitmentDeposit.toString()
   );
   console.log('NORMALIZED EVENT COMING WITHDRAW', eventWithCommitment);
   //TODO: Change this
-  return true;
-  // let leafIndex = eventWithCommitment?.leafIndex;
-  // console.log('LEAF INDEXXX coming from event', leafIndex);
+  let leafIndex = eventWithCommitment?.leafIndex;
+  console.log(
+    'LEAF INDEXXX coming from event GOING TO PROOF',
+    BigInt(leafIndex)
+  );
   //TODO: Add validations of the event
-  //Recostructing the Merkle Tree
-  // let merkleTreeWitness = merkleTree.getWitness(leafIndex);
-  // let merkleWitness = new MerkleWitness(merkleTreeWitness);
 
-  //  try {
-  //   zkapp.verifyProof(commitment, merkleWitness);
-  // } catch (e) {
-  //   console.log('Proof not valid');
-  //   console.log(e);
-  //   }
+  let merkleTreeWitness = merkleTree.getWitness(BigInt(leafIndex));
+  let merkleWitness = new MerkleWitness8(merkleTreeWitness);
+  console.log('Merkle Proof => ', merkleWitness);
+
+  try {
+    zkapp.verifyMerkleProof(eventWithCommitment?.commitment, merkleWitness);
+    console.log('VERIFICATION COMPLETED, RELEASING FUNDS');
+  } catch (e) {
+    console.log('Proof not valid');
+    console.log(e);
+  }
+  //TODO: ADD basic catch erros returns to link it with the front-end
+  return true;
   //Verifying the nullifier
 }
 async function getDepositEvents() {
@@ -617,6 +657,16 @@ async function initTest() {
   console.log('NOTE STRING FROM DEPOSIT => ', noteString);
   withdraw(noteString);
 }
+async function withdrawFunds(reciever: PublicKey, amount: any) {
+  let tx = await Mina.transaction(minadoFeePayer, () => {
+    let update = AccountUpdate.createSigned(zkappKey);
+    //The userAddress is funced
+    update.send({ to: reciever, amount: amount });
+    console.log(`Sendind Funds to address ${reciever}`);
+    //Parece que la zkapp no puede recibir fondos
+  });
+  await tx.send();
+}
 initTest();
 // async function verifyTransaction(leafIndex,commitment) {
 //   let withdrawTx = await Mina.transaction(zkappKey, () => {
@@ -635,16 +685,4 @@ initTest();
 //     update.send({ to: userAccountAddress, amount: amountToTransfer });
 //   });
 //   await withdrawTx.send();
-// }
-// function getState(zkappAddress: PublicKey) {
-//   let zkapp = new MixerZkapp(zkappAddress);
-//   let commitment1 = fieldToHex(zkapp.commitment1.get());
-//   let commitment2 = fieldToHex(zkapp.commitment2.get());
-//   let hits1 = zkapp.hits1.get().toString();
-//   let hits2 = zkapp.hits2.get().toString();
-//   let turn = zkapp.turn.get().toString();
-//   let guessX = zkapp.guessX.get().toString();
-//   let guessY = zkapp.guessY.get().toString();
-
-//   return { commitment1, commitment2, hits1, hits2, turn, guessX, guessY };
 // }
