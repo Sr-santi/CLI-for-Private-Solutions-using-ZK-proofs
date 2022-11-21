@@ -20,11 +20,21 @@ import {
   UInt64,
   Int64,
   MerkleTree,
+  Signature,
 } from 'snarkyjs';
+import {
+  OffChainStorage,
+  MerkleWitness8,
+} from 'experimental-zkapp-offchain-storage';
 // import { tic, toc } from './tictoc';
 import DepositClass from './proof_system/models/DepositClass.js';
 import NullifierClass from './proof_system/models/NullifierClass.js';
 import { Events } from 'snarkyjs/dist/node/lib/account_update.js';
+import fs from 'fs';
+import XMLHttpRequestTs, { XMLHttpRequest } from 'xmlhttprequest-ts';
+
+const NodeXMLHttpRequest =
+  XMLHttpRequestTs.XMLHttpRequest as any as typeof XMLHttpRequest;
 // export { deploy };
 
 await isReady;
@@ -46,28 +56,41 @@ export class MixerZkApp extends SmartContract {
   // @state(Field) merkleTreeVariable = State<MerkleTree>();
   @state(Field) merkleTreeRoot = State<Field>();
   @state(Field) lastIndexAdded = State<Field>();
+  //State variables offchain storage
+  @state(PublicKey) storageServerPublicKey = State<PublicKey>();
+  @state(Field) storageNumber = State<Field>();
+  @state(Field) storageTreeRoot = State<Field>();
 
   events = {
     deposit: DepositClass,
     nullifier: NullifierClass,
   };
 
-  deploy(args: DeployArgs) {
+  async deploy(args: DeployArgs) {
     super.deploy(args);
     this.setPermissions({
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
       send: Permissions.proofOrSignature(),
     });
+    console.log('Connecting to the server....');
+    let serverPublicKey = await offChainStorageSetup();
+    console.log('Connected to the server => PB key => ', serverPublicKey);
+    this.storageServerPublicKey.set(serverPublicKey);
+
     //TODO: Check the functionality of this line
-    // this.balance.addInPlace(new UInt64(initialBalance));
     this.lastIndexAdded.set(initialIndex);
   }
   @method initState() {
     console.log('Initiating Merkle Tree .....');
     const merkleTreeRoot = merkleTree.getRoot();
     //Setting the state of the Merkle Tree
+    //TODO: DELETE
     this.merkleTreeRoot.set(merkleTreeRoot);
+    const emptyTreeRoot = new MerkleTree(8).getRoot();
+    this.storageTreeRoot.set(emptyTreeRoot);
+    //Used to make sure that we are storing states
+    this.storageNumber.set(Field.zero);
   }
   //
   //TODO:  Verify Merke Tree before inserting a commitment
@@ -75,13 +98,10 @@ export class MixerZkApp extends SmartContract {
     console.log('Updating the Merkle Tree .....');
 
     /**
-     * Getting Merkle Tree root
+     * Getting Merkle Tree State in the contract
      */
     let merkleTreeRoot = this.merkleTreeRoot.get();
     this.merkleTreeRoot.assertEquals(merkleTreeRoot);
-
-    //Getting the last index
-
     let lastIndex = this.lastIndexAdded.get();
     this.lastIndexAdded.assertEquals(lastIndex);
     let lastIndexFormated = lastIndex.toBigInt();
@@ -116,6 +136,56 @@ export class MixerZkApp extends SmartContract {
       timeStamp: new Field(2),
     };
     this.emitEvent('deposit', deposit);
+  }
+  @method updateOffchain(
+    leafIsEmpty: Bool,
+    oldLeaf: Field,
+    commitment: Field,
+    path: MerkleWitness8,
+    storedNewRootNumber: Field,
+    storedNewRootSignature: Signature
+  ) {
+    //Get the state of the contract
+    const storedRoot = this.storageTreeRoot.get();
+    this.storageTreeRoot.assertEquals(storedRoot);
+
+    let storedNumber = this.storageNumber.get();
+    this.storageNumber.assertEquals(storedNumber);
+
+    let storageServerPublicKey = this.storageServerPublicKey.get();
+    this.storageServerPublicKey.assertEquals(storageServerPublicKey);
+    console.log('STORAGE SERVER PB => ', storageServerPublicKey);
+
+    //Check that the new leaf is greated than the old leaf
+    let leaf = [oldLeaf];
+    let newLeaf = [commitment];
+
+    // newLeaf can be a function of the existing leaf
+    newLeaf[0].assertGt(leaf[0]);
+
+    const updates = [
+      {
+        leaf,
+        leafIsEmpty,
+        newLeaf,
+        newLeafIsEmpty: Bool(false),
+        leafWitness: path,
+      },
+    ];
+
+    //Fucntion to verify that the update really came from the existing
+
+    const storedNewRoot = OffChainStorage.assertRootUpdateValid(
+      storageServerPublicKey,
+      storedNumber,
+      storedRoot,
+      updates,
+      storedNewRootNumber,
+      storedNewRootSignature
+    );
+
+    this.storageTreeRoot.set(storedNewRoot);
+    this.storageNumber.set(storedNewRootNumber);
   }
   //TODO: ADD NEW IMPLEMENTATION OF MERKLE WITNESS
   // /**
@@ -160,7 +230,45 @@ let tx = await Mina.transaction(minadoFeePayer, () => {
   console.log('Minado wallet funded succesfully');
 });
 await tx.send();
-// console.log(
+//todo: change functions
+async function offChainStorageSetup() {
+  // Connecting to the server
+  const storageServerAddress = 'http://localhost:3001';
+  const serverPublicKey = await OffChainStorage.getPublicKey(
+    storageServerAddress,
+    NodeXMLHttpRequest
+  );
+  return serverPublicKey;
+}
+// async function updateMerkleTreeOffchain (commitment:Field){
+//    //Get the root of the Merkle Tree
+//    // get the existing tree
+//    const treeRoot = await zkapp.storageTreeRoot.get();
+//    const idx2fields = await OffChainStorage.get(
+//      storageServerAddress,
+//      zkappAddress,
+//      MerkleTreeHeight,
+//      treeRoot,
+//      NodeXMLHttpRequest
+//    );
+//   // RECONSTRUCTING THE TREE
+//   const tree = OffChainStorage.mapToTree(MerkleTreeHeight, idx2fields);
+//   const currentIndex=zkapp.lastIndexAdded
+//   //Crearing the merkle witness
+//   //TODO: Tutn leaf index into a BigInt
+//   const leafWitness = new MerkleWitness8(tree.getWitness(currentIndex.toBigInt()));
+
+//    // get the previopus commitment
+//    const priorCommitmentInLeaf = !idx2fields.has(currentIndex);
+//    let priorCommitment: Field;
+//    if (!priorCommitmentInLeaf) {
+//     priorCommitment = idx2fields.get(currentIndex)![0];
+//      //Change for new commitment
+//    } else {
+//      priorCommitment = Field.zero;
+
+// }
+
 //   'Initial state of the merkle tree =>>',
 //   zkapp.merkleTreeRoot.get().toString()
 // );
@@ -431,6 +539,8 @@ async function validateProof(deposit: Deposit) {
     (e) => e.commitment === commitmentDeposit
   );
   console.log('NORMALIZED EVENT COMING WITHDRAW', eventWithCommitment);
+  //TODO: Change this
+  return true;
   // let leafIndex = eventWithCommitment?.leafIndex;
   // console.log('LEAF INDEXXX coming from event', leafIndex);
   //TODO: Add validations of the event
