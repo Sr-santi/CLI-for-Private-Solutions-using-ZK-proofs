@@ -713,6 +713,57 @@
           ]
         }
       }
+    },
+    "B62qqWMB8tTE4LgEWi15ZEQ318F6ybq4AQpCnYRNRyMTWfzJFmybRSj": {
+      "nextNumber": 2,
+      "height": 8,
+      "root2data": {
+        "3631496238307609969598541012976358790017421007090876908694837133975065002508": {
+          "rootNumber": 1,
+          "items": [
+            [
+              "2",
+              [
+                "19297915492405713142650586902886603999192505172513881706639069690527933406253"
+              ]
+            ]
+          ]
+        }
+      }
+    },
+    "B62qpSFdysbha8pqeLhSYsC5ddGayKW6XVw2tZhwz1W5AcPPDaNEcTM": {
+      "nextNumber": 2,
+      "height": 8,
+      "root2data": {
+        "16128367656717309694481944507917099366682298263879223680961846172755122255739": {
+          "rootNumber": 1,
+          "items": [
+            [
+              "2",
+              [
+                "18098481721781272590696144956993703904408680876202042977208132366422603838387"
+              ]
+            ]
+          ]
+        }
+      }
+    },
+    "B62qkxGXe9txvrGCYSvAU8D7bohf6x9AoQxhDTHxSQyZEEdyGqSx2Yc": {
+      "nextNumber": 2,
+      "height": 8,
+      "root2data": {
+        "16020134578987648910809944323541701195520352786847458504836151963635285897878": {
+          "rootNumber": 1,
+          "items": [
+            [
+              "0",
+              [
+                "25961592048047758154434568349686081911547579798196114751977444640541418404789"
+              ]
+            ]
+          ]
+        }
+      }
     }
   },
   "serverPrivateKey58": "EKDyyYTZQGs6TQGSbCsmKd3qwviT6A9Mr3m4xu6b2XEJV6yKTES5"
