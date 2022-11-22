@@ -52,6 +52,8 @@
     "snarkyjs": "^0.7.1"
   },
   "dependencies": {
-    "browserify": "^17.0.0"
+    "browserify": "^17.0.0",
+    "experimental-zkapp-offchain-storage": "^0.2.0",
+    "xmlhttprequest-ts": "^1.0.1"
   }
 }
